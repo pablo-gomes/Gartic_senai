@@ -66,38 +66,39 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col text-indigo-950">
-      {/* Party Game Top Bar */}
-      <header className="flex items-center justify-between gap-4 px-4 sm:px-8 py-3 bg-indigo-950/85 backdrop-blur-md border-b-2 border-indigo-400/30 sticky top-0 z-30 shadow-md">
-        {/* Zone 1: Expressive Game Logo & Wordmark */}
+    <div className="min-h-screen flex flex-col text-slate-100">
+      {/* Modern Game Top Bar */}
+      <header className="flex items-center justify-between gap-4 px-4 sm:px-8 py-3 bg-slate-950/80 backdrop-blur-xl border-b border-indigo-500/20 sticky top-0 z-30 shadow-2xl">
+        {/* Zone 1: Game Logo & Wordmark */}
         <a
           href="/"
           className="flex items-center gap-2.5 text-xl font-extrabold tracking-tight text-white whitespace-nowrap shrink-0 font-display group"
         >
-          <span className="w-9 h-9 rounded-xl bg-amber-400 border-2 border-amber-200 flex items-center justify-center text-indigo-950 shadow-sm group-hover:rotate-6 transition-transform">
+          <span className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-300 border border-amber-200/60 flex items-center justify-center text-slate-950 shadow-md group-hover:scale-105 transition-transform">
             <Palette className="w-5 h-5 stroke-[2.5]" />
           </span>
-          <span>
-            SENAI <span className="text-amber-300">Phone</span>
+          <span className="flex items-center gap-1">
+            <span className="text-white font-extrabold">SENAI</span>
+            <span className="text-amber-400 font-extrabold">Phone</span>
           </span>
         </a>
 
-        {/* Zone 2: Clean single-line text navigation links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-bold text-indigo-100">
+        {/* Zone 2: Navigation Links */}
+        <nav className="hidden md:flex items-center gap-2 text-sm font-bold text-slate-300">
           <button
             type="button"
             onClick={() => {
               setShowRulesModal(false);
               setShowAudioModal(false);
             }}
-            className="hover:text-amber-300 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="px-3 py-1.5 rounded-lg hover:text-white hover:bg-white/5 transition-all whitespace-nowrap shrink-0 cursor-pointer"
           >
             Sala de Jogo
           </button>
           <button
             type="button"
             onClick={() => setShowRulesModal(true)}
-            className="hover:text-amber-300 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="px-3 py-1.5 rounded-lg hover:text-amber-400 hover:bg-white/5 transition-all whitespace-nowrap shrink-0 cursor-pointer"
           >
             Como Jogar
           </button>
@@ -106,21 +107,21 @@ export default function App() {
             onClick={() =>
               setModerationModalCtx((prev) => ({ ...prev, isOpen: true }))
             }
-            className="hover:text-amber-300 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="px-3 py-1.5 rounded-lg hover:text-amber-400 hover:bg-white/5 transition-all whitespace-nowrap shrink-0 cursor-pointer"
           >
             Catálogo de Palavras
           </button>
           <button
             type="button"
             onClick={() => setShowAudioModal(true)}
-            className="hover:text-amber-300 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="px-3 py-1.5 rounded-lg hover:text-amber-400 hover:bg-white/5 transition-all whitespace-nowrap shrink-0 cursor-pointer"
           >
             Opções de Áudio
           </button>
         </nav>
 
         {/* Zone 3: Quick Music Toggle + Split Screen Action */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <button
             type="button"
             onClick={handleToggleMusic}
@@ -130,13 +131,13 @@ export default function App() {
                 ? 'Clique para desativar a música de fundo'
                 : 'Clique para ativar a música de fundo'
             }
-            className={`px-3 py-2 text-xs font-extrabold rounded-xl border-2 transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-2 text-xs font-extrabold rounded-xl border transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
               musicEnabled
-                ? 'bg-emerald-500 hover:bg-emerald-400 text-white border-emerald-300 shadow-sm'
-                : 'bg-indigo-900/90 hover:bg-indigo-800 text-indigo-200 border-indigo-400/40'
+                ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/50 shadow-sm'
+                : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400 border-slate-700/60'
             }`}
           >
-            <Music className={`w-3.5 h-3.5 ${musicEnabled ? 'animate-bounce' : 'opacity-60'}`} />
+            <Music className={`w-3.5 h-3.5 ${musicEnabled ? 'text-emerald-400 animate-pulse' : 'opacity-60'}`} />
             <span>{musicEnabled ? 'Música: ON' : 'Música: OFF'}</span>
           </button>
 
@@ -144,13 +145,13 @@ export default function App() {
             type="button"
             onClick={() => setShowAudioModal(true)}
             title="Configurações de Som e Estilo Musical"
-            className="p-2 rounded-xl bg-indigo-900/90 hover:bg-indigo-800 text-indigo-100 border-2 border-indigo-400/40 transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700/60 hover:text-white transition-colors cursor-pointer"
             aria-label="Configurações de Áudio"
           >
             {sfxEnabled || musicEnabled ? (
-              <Volume2 className="w-4 h-4 text-amber-300" />
+              <Volume2 className="w-4 h-4 text-amber-400" />
             ) : (
-              <VolumeX className="w-4 h-4 text-indigo-400" />
+              <VolumeX className="w-4 h-4 text-slate-500" />
             )}
           </button>
 
@@ -176,12 +177,12 @@ export default function App() {
       <main className="flex-1 flex flex-col">
         {splitScreenMode ? (
           <div className="w-full max-w-[1600px] mx-auto px-3 py-3 grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
-            <div className="border-3 border-indigo-300/70 rounded-3xl bg-indigo-950/35 overflow-hidden shadow-xl">
-              <div className="bg-indigo-900/90 px-4 py-2 border-b border-indigo-400/30 flex items-center justify-between text-xs">
-                <span className="font-extrabold text-amber-300">
+            <div className="border border-indigo-500/30 rounded-3xl bg-slate-950/50 overflow-hidden shadow-2xl backdrop-blur-md">
+              <div className="bg-slate-900/90 px-4 py-2.5 border-b border-indigo-500/20 flex items-center justify-between text-xs">
+                <span className="font-extrabold text-amber-400">
                   Jogador #1 (Anfitrião / Tela Principal)
                 </span>
-                <span className="text-indigo-200 font-medium">Conectado via WebSocket</span>
+                <span className="text-slate-400 font-medium">Conectado via WebSocket</span>
               </div>
               <GameClientView
                 clientSlotId="p1"
@@ -196,12 +197,12 @@ export default function App() {
               />
             </div>
 
-            <div className="border-3 border-indigo-300/70 rounded-3xl bg-indigo-950/35 overflow-hidden shadow-xl">
-              <div className="bg-indigo-900/90 px-4 py-2 border-b border-indigo-400/30 flex items-center justify-between text-xs">
-                <span className="font-extrabold text-emerald-300">
+            <div className="border border-indigo-500/30 rounded-3xl bg-slate-950/50 overflow-hidden shadow-2xl backdrop-blur-md">
+              <div className="bg-slate-900/90 px-4 py-2.5 border-b border-indigo-500/20 flex items-center justify-between text-xs">
+                <span className="font-extrabold text-emerald-400">
                   Jogador #2 (Convidado em Tempo Real)
                 </span>
-                <span className="text-indigo-200 font-medium">
+                <span className="text-slate-400 font-medium">
                   {activeJoinCode
                     ? `Conectado à sala #${activeJoinCode}`
                     : 'Crie uma sala no Jogador #1 para conectar'}
@@ -236,20 +237,20 @@ export default function App() {
       {/* Rules / How to Play Modal */}
       {showRulesModal && (
         <div
-          className="fixed inset-0 z-50 bg-indigo-950/75 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
           role="dialog"
           aria-modal="true"
           aria-labelledby="rules-title"
         >
-          <div className="game-panel rounded-3xl max-w-2xl w-full p-6 sm:p-7 flex flex-col gap-5">
-            <div className="flex items-center justify-between border-b-2 border-indigo-100 pb-3">
-              <h2 id="rules-title" className="text-xl font-extrabold text-indigo-950 font-display">
+          <div className="game-panel rounded-3xl max-w-2xl w-full p-6 sm:p-7 flex flex-col gap-5 border border-indigo-500/30 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-700/60 pb-3">
+              <h2 id="rules-title" className="text-xl font-extrabold text-white font-display">
                 Como Jogar — SENAI Phone
               </h2>
               <button
                 type="button"
                 onClick={() => setShowRulesModal(false)}
-                className="p-2 rounded-xl text-indigo-500 hover:text-indigo-950 hover:bg-indigo-50 cursor-pointer"
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 cursor-pointer transition-colors"
                 aria-label="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -257,36 +258,36 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 flex flex-col gap-1.5">
-                <h3 className="font-extrabold text-indigo-950 font-display">01. Mais de 80 Temas Sem Repetir</h3>
-                <p className="text-xs text-indigo-900/80 leading-relaxed">
-                  A cada rodada, o <strong>Desenhista</strong> escolhe entre 80+ temas diferentes. Os temas jogados não se repetem nas rodadas seguintes!
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col gap-1.5">
+                <h3 className="font-extrabold text-amber-300 font-display">01. Mais de 80 Temas Sem Repetir</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  A cada rodada, o <strong className="text-amber-200">Desenhista</strong> escolhe entre 80+ temas diferentes. Os temas jogados não se repetem nas rodadas seguintes!
                 </p>
               </div>
 
-              <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4 flex flex-col gap-1.5">
-                <h3 className="font-extrabold text-indigo-950 font-display">02. Pincel Livre &amp; Formas</h3>
-                <p className="text-xs text-indigo-900/80 leading-relaxed">
+              <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-4 flex flex-col gap-1.5">
+                <h3 className="font-extrabold text-indigo-300 font-display">02. Pincel Livre &amp; Formas</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
                   Use o pincel colorido ou adicione formas geométricas redimensionáveis na folha. Os outros jogadores tentam adivinhar em tempo real!
                 </p>
               </div>
 
-              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 flex flex-col gap-1.5">
-                <h3 className="font-extrabold text-indigo-950 font-display">03. Dicas de Letras</h3>
-                <p className="text-xs text-indigo-900/80 leading-relaxed">
-                  Apenas quem está desenhando pode clicar nas letras ou no botão <strong>Revelar Letra</strong> para dar dicas, enquanto os adivinhadores observam as letras reveladas!
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex flex-col gap-1.5">
+                <h3 className="font-extrabold text-emerald-300 font-display">03. Dicas de Letras</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Apenas quem está desenhando pode clicar nas letras ou no botão <strong className="text-emerald-200">Revelar Letra</strong> para dar dicas, enquanto os adivinhadores observam as letras reveladas!
                 </p>
               </div>
 
-              <div className="bg-rose-50 border-2 border-rose-200 rounded-2xl p-4 flex flex-col gap-1.5">
-                <h3 className="font-extrabold text-indigo-950 font-display">04. Velocidade &amp; Pontos por Pessoa</h3>
-                <p className="text-xs text-indigo-900/80 leading-relaxed">
-                  Quanto mais rápido você acertar, mais pontos ganha (até 160 pts). O desenhista ganha <strong>acertos × pontosPorPessoa</strong> em tempo real (quanto menos jogadores acertarem, mais o desenhista pontua; se mais jogadores acertarem, menos ele pontua)!
+              <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4 flex flex-col gap-1.5">
+                <h3 className="font-extrabold text-rose-300 font-display">04. Velocidade &amp; Pontos por Pessoa</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Quanto mais rápido você acertar, mais pontos ganha (até 160 pts). O desenhista ganha <strong className="text-rose-200">acertos × pontosPorPessoa</strong> em tempo real!
                 </p>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t-2 border-indigo-100">
+            <div className="flex justify-end pt-2 border-t border-slate-700/60">
               <button
                 type="button"
                 onClick={() => setShowRulesModal(false)}
@@ -302,20 +303,20 @@ export default function App() {
       {/* Audio Settings Modal */}
       {showAudioModal && (
         <div
-          className="fixed inset-0 z-50 bg-indigo-950/75 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
           role="dialog"
           aria-modal="true"
           aria-labelledby="audio-title"
         >
-          <div className="game-panel rounded-3xl max-w-md w-full p-6 flex flex-col gap-5">
-            <div className="flex items-center justify-between border-b-2 border-indigo-100 pb-3">
-              <h2 id="audio-title" className="text-xl font-extrabold text-indigo-950 font-display">
+          <div className="game-panel rounded-3xl max-w-md w-full p-6 flex flex-col gap-5 border border-indigo-500/30 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-700/60 pb-3">
+              <h2 id="audio-title" className="text-xl font-extrabold text-white font-display">
                 Música &amp; Efeitos Sonoros
               </h2>
               <button
                 type="button"
                 onClick={() => setShowAudioModal(false)}
-                className="p-2 rounded-xl text-indigo-500 hover:text-indigo-950 hover:bg-indigo-50 cursor-pointer"
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 cursor-pointer transition-colors"
                 aria-label="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -324,12 +325,12 @@ export default function App() {
 
             <div className="flex flex-col gap-3.5">
               {/* Background Music Toggle */}
-              <div className="flex items-center justify-between bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5">
+              <div className="flex items-center justify-between bg-slate-900/70 border border-slate-700/60 rounded-2xl p-3.5">
                 <div className="flex items-center gap-3">
-                  <Music className={`w-5 h-5 ${musicEnabled ? 'text-emerald-600 animate-bounce' : 'text-slate-400'}`} />
+                  <Music className={`w-5 h-5 ${musicEnabled ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
                   <div>
-                    <div className="text-sm font-extrabold text-indigo-950">Música de Fundo</div>
-                    <div className="text-xs text-indigo-800/75">
+                    <div className="text-sm font-extrabold text-white">Música de Fundo</div>
+                    <div className="text-xs text-slate-400">
                       Trilha sonora animada durante o jogo
                     </div>
                   </div>
@@ -337,10 +338,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleToggleMusic}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                     musicEnabled
-                      ? 'bg-emerald-500 text-white shadow-2xs'
-                      : 'bg-slate-200 text-slate-600'
+                      ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold shadow-md'
+                      : 'bg-slate-800 text-slate-400 border border-slate-700'
                   }`}
                 >
                   {musicEnabled ? 'Ativada' : 'Desativada'}
@@ -348,8 +349,8 @@ export default function App() {
               </div>
 
               {/* Background Music Style Selector */}
-              <div className="bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5 flex flex-col gap-2">
-                <div className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide">
+              <div className="bg-slate-900/70 border border-slate-700/60 rounded-2xl p-3.5 flex flex-col gap-2">
+                <div className="text-xs font-extrabold text-slate-300 uppercase tracking-wide">
                   Estilo da Música de Fundo
                 </div>
                 <div className="grid grid-cols-1 gap-1.5">
@@ -360,21 +361,21 @@ export default function App() {
                         key={st.id}
                         type="button"
                         onClick={() => handleSelectMusicStyle(st.id)}
-                        className={`flex items-center justify-between px-3 py-2 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                        className={`flex items-center justify-between px-3 py-2 rounded-xl border text-left transition-all cursor-pointer ${
                           active
-                            ? 'bg-amber-100 border-amber-400 text-indigo-950'
-                            : 'bg-white/80 border-indigo-100 hover:border-indigo-300 text-indigo-900'
+                            ? 'bg-amber-500/20 border-amber-400/60 text-amber-200'
+                            : 'bg-slate-800/40 border-slate-700/50 hover:border-slate-600 text-slate-300 hover:bg-slate-800/80'
                         }`}
                       >
                         <div>
                           <div className="text-xs font-extrabold">{st.name}</div>
-                          <div className="text-[11px] text-indigo-700/80">{st.description}</div>
+                          <div className="text-[11px] text-slate-400">{st.description}</div>
                         </div>
                         <span
                           className={`text-[10px] font-extrabold px-2 py-0.5 rounded-lg ${
                             active
-                              ? 'bg-amber-400 text-indigo-950'
-                              : 'bg-indigo-100 text-indigo-700'
+                              ? 'bg-amber-400 text-slate-950'
+                              : 'bg-slate-700/80 text-slate-300'
                           }`}
                         >
                           {active ? 'Tocando' : 'Ouvir'}
@@ -386,16 +387,16 @@ export default function App() {
               </div>
 
               {/* SFX Toggle */}
-              <div className="flex items-center justify-between bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5">
+              <div className="flex items-center justify-between bg-slate-900/70 border border-slate-700/60 rounded-2xl p-3.5">
                 <div className="flex items-center gap-3">
                   {sfxEnabled ? (
-                    <Volume2 className="w-5 h-5 text-indigo-600" />
+                    <Volume2 className="w-5 h-5 text-indigo-400" />
                   ) : (
-                    <VolumeX className="w-5 h-5 text-slate-400" />
+                    <VolumeX className="w-5 h-5 text-slate-500" />
                   )}
                   <div>
-                    <div className="text-sm font-extrabold text-indigo-950">Efeitos Sonoros</div>
-                    <div className="text-xs text-indigo-800/75">
+                    <div className="text-sm font-extrabold text-white">Efeitos Sonoros</div>
+                    <div className="text-xs text-slate-400">
                       Sons de rodada, acertos, dicas e relógio
                     </div>
                   </div>
@@ -403,10 +404,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleToggleSfx}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                     sfxEnabled
-                      ? 'bg-emerald-500 text-white shadow-2xs'
-                      : 'bg-slate-200 text-slate-600'
+                      ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold shadow-md'
+                      : 'bg-slate-800 text-slate-400 border border-slate-700'
                   }`}
                 >
                   {sfxEnabled ? 'Ativados' : 'Desativados'}
@@ -414,10 +415,10 @@ export default function App() {
               </div>
 
               {/* Volume Slider */}
-              <div className="bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs font-extrabold text-indigo-950">
+              <div className="bg-slate-900/70 border border-slate-700/60 rounded-2xl p-3.5 flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs font-extrabold text-white">
                   <span>Volume Geral</span>
-                  <span className="font-mono tabular-nums">{Math.round(volume * 100)}%</span>
+                  <span className="font-mono tabular-nums text-amber-400">{Math.round(volume * 100)}%</span>
                 </div>
                 <input
                   type="range"
@@ -426,13 +427,13 @@ export default function App() {
                   step={0.05}
                   value={volume}
                   onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                  className="w-full accent-indigo-600 cursor-pointer"
+                  className="w-full accent-amber-400 cursor-pointer"
                 />
               </div>
             </div>
 
-            <div className="text-xs text-indigo-900/75 flex items-center gap-2 font-medium">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="text-xs text-slate-400 flex items-center gap-2 font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>Você pode ligar ou desligar a música a qualquer momento no topo da tela.</span>
             </div>
           </div>
