@@ -26,18 +26,18 @@ import { THEMES_CATALOG, WORDS_CATALOG } from './src/shared/catalog';
 // RESOURCE, SECURITY & RATE LIMITS (Sections 4, 5, 8, 9, 10, 11)
 // ============================================================================
 const SERVER_BOOT_ID = `boot_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-const MAX_PLAYERS_PER_ROOM = 32;
+const MAX_PLAYERS_PER_ROOM = 35;
 const MAX_ACTIVE_ROOMS = 64;
-const MAX_WS_PAYLOAD_BYTES = 32 * 1024; // 32 KB max message size
-const MAX_POINTS_PER_BATCH = 64;
-const MAX_STROKES_PER_ROUND = 250;
-const MAX_TOTAL_POINTS_PER_ROUND = 6000;
+const MAX_WS_PAYLOAD_BYTES = 64 * 1024; // 64 KB max message size
+const MAX_POINTS_PER_BATCH = 128;
+const MAX_STROKES_PER_ROUND = 400;
+const MAX_TOTAL_POINTS_PER_ROUND = 12000;
 const MAX_CHAT_HISTORY = 35;
 const MAX_GUESS_LENGTH = 80;
 const MIN_GUESS_INTERVAL_MS = 400; // Per-player anti-spam cooldown
 const MAX_MESSAGES_PER_WINDOW = 7; // Max 7 chat/guess messages per 4s window
 const MESSAGE_WINDOW_MS = 4000;
-const MIN_DRAW_BATCH_INTERVAL_MS = 18; // Server rate limit for drawing batches
+const MAX_DRAW_BATCHES_PER_SEC = 120; // Allows TCP proxy bursts without ever dropping legitimate strokes
 const EMPTY_ROOM_TTL_MS = 60 * 1000; // Remove empty rooms after 60s
 const INACTIVE_ROOM_TTL_MS = 20 * 60 * 1000; // Remove inactive rooms after 20m
 
@@ -51,6 +51,8 @@ interface InternalPlayer extends PlayerPublicState {
   messageWindowStart: number;
   messageCountInWindow: number;
   lastDrawBatchAt: number;
+  drawWindowStart: number;
+  drawCountInWindow: number;
   lastStrokeSeqMap: Map<string, number>;
   disconnectTimer: NodeJS.Timeout | null;
 }
@@ -80,7 +82,9 @@ interface InternalRound {
   correctGuessesOrder: RoundGuessRecord[];
   eligibleGuessersCount: number;
   drawerPointsEarned: number;
+  drawerPointsPerPerson: number;
   totalPointsCount: number;
+  drawingRevision: number;
   endReason?: 'time_up' | 'all_guessed' | 'drawer_finished' | 'drawer_disconnected' | 'host_ended';
   ended: boolean;
 }
@@ -101,6 +105,8 @@ interface InternalRoom {
   currentTurnIndex: number;
   currentRound: InternalRound | null;
   usedWordIds: Set<string>;
+  usedThemeIds: Set<string>;
+  shownThemeIds: Set<string>;
   strokes: DrawingStroke[];
   redoStack: DrawingStroke[];
   feed: SystemFeedMessage[];
@@ -314,8 +320,10 @@ function buildPublicState(room: InternalRoom, includeStrokes = true): RoomPublic
       correctGuessPlayerIds: r.correctGuessPlayerIds,
       correctGuessesOrder: r.correctGuessesOrder,
       eligibleGuessersCount: r.eligibleGuessersCount,
+      drawingRevision: r.drawingRevision,
       revealedWord: isEndedPhase && r.secretWord ? r.secretWord.text : undefined,
-      drawerPointsEarned: isEndedPhase ? r.drawerPointsEarned : undefined,
+      drawerPointsEarned: r.drawerPointsEarned,
+      drawerPointsPerPerson: r.drawerPointsPerPerson,
       endReason: r.endReason,
     };
   }
@@ -414,10 +422,14 @@ function broadcastEvent(
     if (excludePlayerId && player.id === excludePlayerId) continue;
     const ws = player.ws;
     if (ws && ws.readyState === WebSocket.OPEN) {
-      if (skipIfBackpressured && ws.bufferedAmount > 256 * 1024) {
+      if (skipIfBackpressured && ws.bufferedAmount > 2 * 1024 * 1024) {
         continue;
       }
-      ws.send(serialized);
+      try {
+        ws.send(serialized);
+      } catch {
+        // Ignore transient socket write error
+      }
     }
   }
 }
@@ -445,10 +457,14 @@ function cleanupRoomResources(room: InternalRoom) {
 
 function pickWordForTheme(room: InternalRoom, themeId: string): { word: WordEntry; resolvedTheme: ThemeEntry } {
   const enabledWords = WORDS_CATALOG.filter((w) => w.enabled && !customDisabledWordIds.has(w.id));
-  let pool =
-    themeId === 'misturado'
-      ? enabledWords
-      : enabledWords.filter((w) => w.themeId === themeId);
+  let pool: WordEntry[];
+
+  if (themeId === 'misturado') {
+    const unusedThemeWords = enabledWords.filter((w) => !room.usedThemeIds.has(w.themeId));
+    pool = unusedThemeWords.length > 0 ? unusedThemeWords : enabledWords;
+  } else {
+    pool = enabledWords.filter((w) => w.themeId === themeId);
+  }
 
   if (room.settings.difficulty !== 'mixed') {
     const diffFiltered = pool.filter((w) => w.difficulty === room.settings.difficulty);
@@ -467,6 +483,14 @@ function pickWordForTheme(room: InternalRoom, themeId: string): { word: WordEntr
     THEMES_CATALOG.find((t) => t.id === (themeId === 'misturado' ? chosen.themeId : themeId)) ||
     THEMES_CATALOG[0];
 
+  // Mark this theme as used so it never repeats in future rounds of the match
+  if (resolvedTheme && resolvedTheme.id !== 'misturado') {
+    room.usedThemeIds.add(resolvedTheme.id);
+  }
+  if (themeId !== 'misturado') {
+    room.usedThemeIds.add(themeId);
+  }
+
   return { word: chosen, resolvedTheme };
 }
 
@@ -474,6 +498,43 @@ function getEligibleGuessers(room: InternalRoom, drawerId: string): InternalPlay
   return Array.from(room.players.values()).filter(
     (p) => p.connectionStatus === 'connected' && p.id !== drawerId
   );
+}
+
+/**
+ * Dynamic points per person for the drawer based on the number of eligible guessers in the room.
+ * - Fewer players in the room -> higher points per correct guesser (e.g., 113 pts for 1 guesser, 58 pts for 2 guessers).
+ * - More players in the room -> balanced points per correct guesser (e.g., 14 pts for 10 guessers, 6 pts for 34 guessers).
+ * - Total drawer points = (number of players who guessed right) * pointsPerPerson.
+ */
+function computeDrawerPointsPerPerson(eligibleGuessersCount: number): number {
+  const eligible = Math.max(1, eligibleGuessersCount);
+  const fullRoomPool = Math.min(210, 110 + eligible * 3);
+  return Math.max(6, Math.round(fullRoomPool / eligible));
+}
+
+/**
+ * Speed-based points for a guesser:
+ * - The faster the player responds (more time remaining), the more points they earn (up to 160 pts).
+ * - The closer to the timer running out, the fewer points they earn (down to 20 pts).
+ */
+function computeGuesserSpeedPoints(
+  round: InternalRound,
+  room: InternalRoom,
+  now: number,
+  order: number
+): { points: number; responseTimeSec: number } {
+  const totalDurationMs = Math.max(10000, room.settings.roundDuration * 1000);
+  const remainingMs = Math.max(0, (round.endsAt ?? now) - now);
+  const elapsedMs = Math.max(0, totalDurationMs - remainingMs);
+  const responseTimeSec = Math.max(1, Math.round(elapsedMs / 1000));
+  const timeRatio = Math.max(0, Math.min(1, remainingMs / totalDurationMs));
+
+  const speedPoints = Math.round(20 + 125 * timeRatio);
+  const orderBonus = order === 1 ? 15 : order === 2 ? 8 : order === 3 ? 4 : 0;
+  const hintPenalty = Math.min(20, round.hintsUsed * 3);
+  const points = Math.max(15, speedPoints + orderBonus - hintPenalty);
+
+  return { points, responseTimeSec };
 }
 
 function checkMessageRateLimit(player: InternalPlayer, now: number): boolean {
@@ -542,12 +603,30 @@ function startRoundSetup(room: InternalRoom) {
   room.strokes = [];
   room.redoStack = [];
 
-  const specificThemes = THEMES_CATALOG.filter((t) => t.id !== 'misturado' && t.enabled);
-  const shuffled = [...specificThemes].sort(() => Math.random() - 0.5).slice(0, 11);
+  const allSpecificThemes = THEMES_CATALOG.filter((t) => t.id !== 'misturado' && t.enabled);
+  // Filter out themes already played in this match so themes never repeat across rounds
+  let unplayedThemes = allSpecificThemes.filter((t) => !room.usedThemeIds.has(t.id));
+  if (unplayedThemes.length < 11) {
+    room.usedThemeIds.clear();
+    unplayedThemes = allSpecificThemes;
+  }
+
+  // Prioritize themes that haven't even been shown as cards yet in previous rounds
+  let unshownThemes = unplayedThemes.filter((t) => !room.shownThemeIds.has(t.id));
+  if (unshownThemes.length < 11) {
+    room.shownThemeIds.clear();
+    unshownThemes = unplayedThemes;
+  }
+
+  const shuffled = [...unshownThemes].sort(() => Math.random() - 0.5).slice(0, 11);
+  for (const t of shuffled) {
+    room.shownThemeIds.add(t.id);
+  }
   const misturado = THEMES_CATALOG.find((t) => t.id === 'misturado');
   const themeOptions = misturado ? [...shuffled, misturado] : shuffled;
 
   const eligibleGuessers = getEligibleGuessers(room, drawer.id);
+  const initialPointsPerPerson = computeDrawerPointsPerPerson(eligibleGuessers.length);
 
   const round: InternalRound = {
     id: generateId('rnd'),
@@ -574,7 +653,9 @@ function startRoundSetup(room: InternalRoom) {
     correctGuessesOrder: [],
     eligibleGuessersCount: eligibleGuessers.length,
     drawerPointsEarned: 0,
+    drawerPointsPerPerson: initialPointsPerPerson,
     totalPointsCount: 0,
+    drawingRevision: 0,
     ended: false,
   };
 
@@ -586,7 +667,7 @@ function startRoundSetup(room: InternalRoom) {
   room.phaseTimer = setTimeout(() => {
     if (!room.currentRound || room.currentRound.id !== round.id) return;
     if (room.settings.themeMode === 'random') {
-      const randomTheme = specificThemes[Math.floor(Math.random() * specificThemes.length)] || THEMES_CATALOG[0];
+      const randomTheme = shuffled[Math.floor(Math.random() * shuffled.length)] || allSpecificThemes[0];
       applyThemeAndRevealWord(room, randomTheme.id);
     } else {
       room.status = 'THEME_SELECTION';
@@ -653,6 +734,7 @@ function startDrawingPhase(room: InternalRoom) {
   }
 
   round.eligibleGuessersCount = getEligibleGuessers(room, round.drawerPlayerId).length;
+  round.drawerPointsPerPerson = computeDrawerPointsPerPerson(round.eligibleGuessersCount);
   round.status = 'DRAWING';
   room.status = 'DRAWING';
 
@@ -706,24 +788,16 @@ function endRound(
   room.status = 'ROUND_RESULT';
 
   const hits = round.correctGuessPlayerIds.length;
-  const eligible = Math.max(1, round.eligibleGuessersCount);
-  let drawerPts = 0;
+  const pointsPerPerson = computeDrawerPointsPerPerson(round.eligibleGuessersCount);
+  round.drawerPointsPerPerson = pointsPerPerson;
+  const finalDrawerPts = hits * pointsPerPerson;
 
-  if (hits > 0) {
-    drawerPts = 50;
-    if (hits / eligible > 0.5 && eligible > 1) {
-      drawerPts += 15;
-    }
-    if (room.settings.scoringMode === 'competitive') {
-      drawerPts = Math.max(15, drawerPts - Math.min(30, round.hintsUsed * 5));
-    }
-  }
-
-  round.drawerPointsEarned = drawerPts;
+  const deltaDrawerPts = finalDrawerPts - round.drawerPointsEarned;
+  round.drawerPointsEarned = finalDrawerPts;
   const drawer = room.players.get(round.drawerPlayerId);
   if (drawer) {
-    drawer.score += drawerPts;
-    drawer.roundPointsEarned = drawerPts;
+    drawer.score = Math.max(0, drawer.score + deltaDrawerPts);
+    drawer.roundPointsEarned = finalDrawerPts;
   }
 
   const secretText = round.secretWord?.text ?? '---';
@@ -751,7 +825,8 @@ function endRound(
     revealedWord: secretText,
     endReason: reason,
     correctGuessesOrder: round.correctGuessesOrder,
-    drawerPointsEarned: drawerPts,
+    drawerPointsEarned: finalDrawerPts,
+    drawerPointsPerPerson: pointsPerPerson,
   };
   broadcastEvent(room, 'round:ended', endPayload);
   broadcastEvent(room, 'game:round-end', endPayload);
@@ -882,7 +957,7 @@ async function startServer() {
     res.json({ rooms: activeRooms });
   });
 
-  // 1. Render & Cloud Proxy Keep-Alive Heartbeat (every 20s prevents 55s idle disconnect)
+  // 1. Render & Cloud Proxy Keep-Alive Heartbeat (every 15s prevents 55s idle disconnect)
   const heartbeatInterval = setInterval(() => {
     wss.clients.forEach((rawWs) => {
       const ws = rawWs as ExtendedWebSocket;
@@ -895,7 +970,7 @@ async function startServer() {
         ws.ping();
       } catch {}
     });
-  }, 20000);
+  }, 15000);
 
   // 2. Single Global Timer Sync & Inactive Room Garbage Collector (Sections 7 & 9)
   let gcCounter = 0;
@@ -904,7 +979,7 @@ async function startServer() {
     gcCounter += 1;
 
     for (const [code, room] of rooms.entries()) {
-      // Emit lightweight game:timer once per second for active timed rounds
+      // Emit lightweight game:timer once per second for active timed rounds, including drawingRevision for auto-healing
       if (
         room.currentRound &&
         room.currentRound.endsAt &&
@@ -919,6 +994,8 @@ async function startServer() {
             remainingSeconds,
             endsAt: room.currentRound.endsAt,
             serverNow: now,
+            drawingRevision: room.currentRound.drawingRevision,
+            strokesCount: room.strokes.length,
           },
           undefined,
           true
@@ -956,9 +1033,15 @@ async function startServer() {
     clearInterval(globalTimerInterval);
   });
 
-  wss.on('connection', (rawWs: WebSocket) => {
+  wss.on('connection', (rawWs: WebSocket, req) => {
     const ws = rawWs as ExtendedWebSocket;
     ws.isAlive = true;
+
+    // Disable Nagle's algorithm so real-time drawing packets flush immediately on Render
+    if (req?.socket) {
+      req.socket.setNoDelay(true);
+      req.socket.setKeepAlive(true, 15000);
+    }
 
     ws.on('pong', () => {
       ws.isAlive = true;
@@ -1070,6 +1153,8 @@ async function startServer() {
           currentTurnIndex: 0,
           currentRound: null,
           usedWordIds: new Set(),
+          usedThemeIds: new Set(),
+          shownThemeIds: new Set(),
           strokes: [],
           redoStack: [],
           feed: [],
@@ -1094,6 +1179,8 @@ async function startServer() {
           messageWindowStart: now,
           messageCountInWindow: 0,
           lastDrawBatchAt: 0,
+          drawWindowStart: now,
+          drawCountInWindow: 0,
           lastStrokeSeqMap: new Map(),
           disconnectTimer: null,
         };
@@ -1248,6 +1335,8 @@ async function startServer() {
           messageWindowStart: now,
           messageCountInWindow: 0,
           lastDrawBatchAt: 0,
+          drawWindowStart: now,
+          drawCountInWindow: 0,
           lastStrokeSeqMap: new Map(),
           disconnectTimer: null,
         };
@@ -1410,6 +1499,8 @@ async function startServer() {
         room.turnOrder = turnOrder;
         room.currentTurnIndex = 0;
         room.usedWordIds.clear();
+        room.usedThemeIds.clear();
+        room.shownThemeIds.clear();
 
         startRoundSetup(room);
         return;
@@ -1452,11 +1543,15 @@ async function startServer() {
         }
 
         const now = Date.now();
+        if (now - player.drawWindowStart > 1000) {
+          player.drawWindowStart = now;
+          player.drawCountInWindow = 0;
+        }
+        player.drawCountInWindow += 1;
         if (
-          payload.tool !== 'shape' &&
+          player.drawCountInWindow > MAX_DRAW_BATCHES_PER_SEC &&
           payload.phase !== 'end' &&
-          payload.phase !== 'start' &&
-          now - player.lastDrawBatchAt < MIN_DRAW_BATCH_INTERVAL_MS
+          payload.phase !== 'start'
         ) {
           return;
         }
@@ -1488,10 +1583,12 @@ async function startServer() {
 
         // Duplicate sequence guard per strokeId (Section 8)
         const prevSeq = player.lastStrokeSeqMap.get(strokeId) ?? -1;
-        if (sequence <= prevSeq && tool !== 'shape') {
+        if (sequence > 0 && sequence <= prevSeq && tool !== 'shape') {
           return;
         }
-        player.lastStrokeSeqMap.set(strokeId, sequence);
+        if (sequence > prevSeq) {
+          player.lastStrokeSeqMap.set(strokeId, sequence);
+        }
 
         if (tool === 'shape' && payload.shape && typeof payload.shape === 'object') {
           const validShapes: ShapeType[] = [
@@ -1553,6 +1650,8 @@ async function startServer() {
             existingShape.sequence = Math.max(existingShape.sequence, sequence);
           }
 
+          room.currentRound.drawingRevision += 1;
+
           const batchOut = {
             roundId: room.currentRound.id,
             strokeId,
@@ -1564,8 +1663,10 @@ async function startServer() {
             points: [],
             shape: shapeGeom,
             sequence,
+            drawingRevision: room.currentRound.drawingRevision,
+            strokesCount: room.strokes.length,
           };
-          broadcastEvent(room, 'drawing:batch', batchOut, player.id, true);
+          broadcastEvent(room, 'drawing:batch', batchOut, player.id, false);
           return;
         }
 
@@ -1632,12 +1733,13 @@ async function startServer() {
           room.strokes.push(stroke);
           room.redoStack = [];
         } else {
-          if (stroke.points.length + cleanPoints.length <= 1200) {
+          if (stroke.points.length + cleanPoints.length <= 2400) {
             stroke.points.push(...cleanPoints);
           }
           stroke.sequence = Math.max(stroke.sequence, sequence);
         }
         room.currentRound.totalPointsCount += cleanPoints.length;
+        room.currentRound.drawingRevision += 1;
 
         const batchPayload = {
           roundId: room.currentRound.id,
@@ -1649,10 +1751,84 @@ async function startServer() {
           width,
           points: cleanPoints,
           sequence,
+          drawingRevision: room.currentRound.drawingRevision,
+          strokesCount: room.strokes.length,
         };
 
-        // Single serialization broadcast to all 31 spectators
-        broadcastEvent(room, 'drawing:batch', batchPayload, player.id, true);
+        // Single serialization broadcast to all 34 spectators without dropping packets
+        broadcastEvent(room, 'drawing:batch', batchPayload, player.id, false);
+        return;
+      }
+
+      // 8B. AUTO-HEALING CANVAS SYNC REQUEST (Spectator missed a packet or tab woke up)
+      if (event === 'drawing:sync_request') {
+        if (!room.currentRound) return;
+        sendToPlayer(player, 'drawing:state', {
+          roundId: room.currentRound.id,
+          strokes: room.strokes,
+          drawingRevision: room.currentRound.drawingRevision,
+        });
+        return;
+      }
+
+      // 8C. DRAWER FULL SNAPSHOT RECOVERY (If drawer had a brief network blip)
+      if (event === 'drawing:drawer_sync') {
+        if (room.status !== 'DRAWING' || !room.currentRound) return;
+        if (player.id !== room.currentRound.drawerPlayerId) return;
+        if (!Array.isArray(payload.strokes)) return;
+
+        const syncedStrokes: DrawingStroke[] = [];
+        let totalPts = 0;
+        for (const rawS of payload.strokes.slice(-MAX_STROKES_PER_ROUND)) {
+          if (!rawS || typeof rawS !== 'object' || typeof rawS.id !== 'string') continue;
+          const sTool: 'brush' | 'eraser' | 'shape' =
+            rawS.tool === 'eraser' ? 'eraser' : rawS.tool === 'shape' ? 'shape' : 'brush';
+          const sColor = /^#[0-9A-Fa-f]{6}$/.test(String(rawS.color || ''))
+            ? String(rawS.color)
+            : '#0F172A';
+          const sWidth =
+            typeof rawS.width === 'number' && Number.isFinite(rawS.width)
+              ? Math.max(2, Math.min(48, Math.round(rawS.width)))
+              : 8;
+          const pts: PointNormalized[] = [];
+          if (Array.isArray(rawS.points)) {
+            for (const p of rawS.points.slice(0, 2400)) {
+              if (p && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y))) {
+                pts.push({
+                  x: Math.max(0, Math.min(1, Number(Number(p.x).toFixed(4)))),
+                  y: Math.max(0, Math.min(1, Number(Number(p.y).toFixed(4)))),
+                });
+              }
+            }
+          }
+          totalPts += pts.length;
+          syncedStrokes.push({
+            id: sanitizeText(rawS.id, 48),
+            roundId: room.currentRound.id,
+            playerId: player.id,
+            tool: sTool,
+            color: sColor,
+            width: sWidth,
+            points: pts,
+            shape: rawS.shape,
+            sequence: Number(rawS.sequence) || 1,
+            createdAt: Number(rawS.createdAt) || Date.now(),
+          });
+        }
+
+        room.strokes = syncedStrokes;
+        room.currentRound.totalPointsCount = totalPts;
+        room.currentRound.drawingRevision += 1;
+        broadcastEvent(
+          room,
+          'drawing:state',
+          {
+            roundId: room.currentRound.id,
+            strokes: room.strokes,
+            drawingRevision: room.currentRound.drawingRevision,
+          },
+          player.id
+        );
         return;
       }
 
@@ -1667,9 +1843,11 @@ async function startServer() {
             0,
             room.currentRound.totalPointsCount - popped.points.length
           );
+          room.currentRound.drawingRevision += 1;
           broadcastEvent(room, 'drawing:state', {
             roundId: room.currentRound.id,
             strokes: room.strokes,
+            drawingRevision: room.currentRound.drawingRevision,
           });
         }
         return;
@@ -1682,9 +1860,11 @@ async function startServer() {
         if (restored) {
           room.strokes.push(restored);
           room.currentRound.totalPointsCount += restored.points.length;
+          room.currentRound.drawingRevision += 1;
           broadcastEvent(room, 'drawing:state', {
             roundId: room.currentRound.id,
             strokes: room.strokes,
+            drawingRevision: room.currentRound.drawingRevision,
           });
         }
         return;
@@ -1699,8 +1879,12 @@ async function startServer() {
         room.strokes = [];
         room.redoStack = [];
         room.currentRound.totalPointsCount = 0;
+        room.currentRound.drawingRevision += 1;
         player.lastStrokeSeqMap.clear();
-        broadcastEvent(room, 'drawing:clear', { roundId: room.currentRound.id });
+        broadcastEvent(room, 'drawing:clear', {
+          roundId: room.currentRound.id,
+          drawingRevision: room.currentRound.drawingRevision,
+        });
         return;
       }
 
@@ -1849,15 +2033,27 @@ async function startServer() {
           const order = round.correctGuessPlayerIds.length;
           player.guessOrder = order;
 
-          let pts = 0;
-          if (room.settings.scoringMode === 'competitive') {
-            const basePoints = order === 1 ? 100 : order === 2 ? 80 : order === 3 ? 60 : 40;
-            const hintPenalty = Math.min(25, round.hintsUsed * 5);
-            pts = Math.max(15, basePoints - hintPenalty);
-          }
-
+          // 1. Speed-based guesser points: faster response = more points, closer to time end = fewer points
+          const { points: pts, responseTimeSec } = computeGuesserSpeedPoints(round, room, now, order);
           player.score += pts;
           player.roundPointsEarned = pts;
+
+          // 2. Per-person dynamic drawer points: scales with number of players in the room
+          round.eligibleGuessersCount = Math.max(
+            round.correctGuessPlayerIds.length,
+            getEligibleGuessers(room, round.drawerPlayerId).length
+          );
+          const pointsPerPerson = computeDrawerPointsPerPerson(round.eligibleGuessersCount);
+          round.drawerPointsPerPerson = pointsPerPerson;
+          const newDrawerRoundTotal = round.correctGuessPlayerIds.length * pointsPerPerson;
+          const drawerDelta = newDrawerRoundTotal - round.drawerPointsEarned;
+          round.drawerPointsEarned = newDrawerRoundTotal;
+
+          const drawer = room.players.get(round.drawerPlayerId);
+          if (drawer) {
+            drawer.score = Math.max(0, drawer.score + drawerDelta);
+            drawer.roundPointsEarned = newDrawerRoundTotal;
+          }
 
           const record: RoundGuessRecord = {
             playerId: player.id,
@@ -1866,21 +2062,18 @@ async function startServer() {
             order,
             pointsAwarded: pts,
             submittedAt: now,
+            responseTimeSec,
           };
           round.correctGuessesOrder.push(record);
 
-          const hitMsg =
-            room.settings.scoringMode === 'competitive'
-              ? `${player.nickname} acertou a palavra! (+${pts} pts)`
-              : `${player.nickname} acertou a palavra!`;
-
+          const hitMsg = `${player.nickname} acertou em ${responseTimeSec}s! (+${pts} pts · Desenhista +${pointsPerPerson} pts)`;
           const feedMsg = addFeedMessage(room, 'correct_guess', hitMsg, player.nickname);
 
           sendToPlayer(player, 'guess:feedback', {
             correct: true,
             pointsAwarded: pts,
             order,
-            text: 'Você acertou! Resposta bloqueada até o fim da rodada.',
+            text: `Você acertou em ${responseTimeSec}s e ganhou +${pts} pontos!`,
           });
 
           const correctPayload = {
@@ -1890,7 +2083,12 @@ async function startServer() {
             avatarId: player.avatarId,
             order,
             pointsAwarded: pts,
+            responseTimeSec,
             playerTotalScore: player.score,
+            drawerPlayerId: round.drawerPlayerId,
+            drawerTotalScore: drawer?.score,
+            drawerPointsEarned: round.drawerPointsEarned,
+            drawerPointsPerPerson: pointsPerPerson,
             correctGuessPlayerIds: round.correctGuessPlayerIds,
             correctGuessesOrder: round.correctGuessesOrder,
             eligibleGuessersCount: round.eligibleGuessersCount,

@@ -41,6 +41,9 @@ export interface DrawingCanvasHandle {
   applyBatch: (batch: DrawingBatchPayload) => void;
   replaceStrokes: (newStrokes: DrawingStroke[]) => void;
   clearCanvas: () => void;
+  getStrokesCount: () => number;
+  getStrokes: () => DrawingStroke[];
+  isActivelyDrawing: () => boolean;
 }
 
 interface DrawingCanvasProps {
@@ -58,8 +61,8 @@ interface DrawingCanvasProps {
 
 const LOGICAL_WIDTH = 960;
 const LOGICAL_HEIGHT = 560;
-const DEFAULT_BATCH_INTERVAL_MS = 50; // 20 updates per second max (Rule 6)
-const MAX_POINTS_PER_BATCH = 32; // Compact batch limit (Rule 5 & 12)
+const DEFAULT_BATCH_INTERVAL_MS = 40; // 25 updates per second smooth real-time streaming
+const MAX_POINTS_PER_BATCH = 64; // Compact batch limit
 
 const SHAPE_OPTIONS: Array<{ id: ShapeType; label: string; icon: React.ReactNode }> = [
   { id: 'rect', label: 'Retângulo', icon: <Square className="w-3.5 h-3.5" /> },
@@ -98,6 +101,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     const lastRoundIdRef = useRef<string | null>(null);
 
     const [hasStrokes, setHasStrokes] = useState<boolean>(false);
+    const hasStrokesRef = useRef<boolean>(false);
     const [tool, setTool] = useState<'brush' | 'eraser' | 'shape'>('brush');
     const [selectedShapeType, setSelectedShapeType] = useState<ShapeType>('rect');
     const [shapeFilled, setShapeFilled] = useState<boolean>(false);
@@ -107,7 +111,32 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     const [confirmClear, setConfirmClear] = useState<boolean>(false);
 
     const [activeShapeId, setActiveShapeId] = useState<string | null>(null);
+    const activeShapeIdRef = useRef<string | null>(null);
     const [, setShapeRevision] = useState<number>(0);
+
+    // Refs to prevent stale closures inside setInterval / pointer handlers
+    const toolRef = useRef<'brush' | 'eraser' | 'shape'>(tool);
+    toolRef.current = tool;
+    const colorRef = useRef<string>(color);
+    colorRef.current = color;
+    const brushWidthRef = useRef<number>(brushWidth);
+    brushWidthRef.current = brushWidth;
+    const onEmitBatchRef = useRef(onEmitBatch);
+    onEmitBatchRef.current = onEmitBatch;
+    const roundIdRef = useRef<string | null>(roundId);
+    roundIdRef.current = roundId;
+    const isDrawerRef = useRef<boolean>(isDrawer);
+    isDrawerRef.current = isDrawer;
+    activeShapeIdRef.current = activeShapeId;
+
+    const updateHasStrokes = useCallback((val: boolean) => {
+      if (hasStrokesRef.current !== val) {
+        hasStrokesRef.current = val;
+        if (isDrawerRef.current) {
+          setHasStrokes(val);
+        }
+      }
+    }, []);
 
     const isPointerDownRef = useRef<boolean>(false);
     const activeStrokeIdRef = useRef<string | null>(null);
@@ -414,7 +443,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
             if (existingIdx === -1) {
               list.push({
                 id: batch.strokeId,
-                roundId: batch.roundId || roundId || '',
+                roundId: batch.roundId || roundIdRef.current || '',
                 playerId: batch.playerId || '',
                 tool: 'shape',
                 color: batch.color,
@@ -433,7 +462,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 sequence: Math.max(list[existingIdx].sequence, batch.sequence),
               };
             }
-            if (!hasStrokes) setHasStrokes(true);
+            updateHasStrokes(true);
             redrawAllFromRef();
             return;
           }
@@ -445,7 +474,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
           if (existingIdx === -1) {
             list.push({
               id: batch.strokeId,
-              roundId: batch.roundId || roundId || '',
+              roundId: batch.roundId || roundIdRef.current || '',
               playerId: batch.playerId || '',
               tool: strokeTool,
               color: batch.color,
@@ -454,7 +483,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
               sequence: batch.sequence,
               createdAt: Date.now(),
             });
-            if (!hasStrokes) setHasStrokes(true);
+            updateHasStrokes(true);
             drawIncrementalSegmentOnCtx(
               strokeTool,
               batch.color,
@@ -464,15 +493,15 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
             );
           } else {
             const existing = list[existingIdx];
-            if (batch.sequence <= existing.sequence && existing.points.length > 0) {
-              return; // Duplicate packet guard (Section 8)
+            if (batch.sequence > 0 && batch.sequence <= existing.sequence && existing.points.length > 0) {
+              return; // Duplicate packet guard
             }
             const prevPt =
               existing.points.length > 0
                 ? existing.points[existing.points.length - 1]
                 : null;
             existing.points.push(...incomingPoints);
-            existing.sequence = batch.sequence;
+            existing.sequence = Math.max(existing.sequence, batch.sequence);
             drawIncrementalSegmentOnCtx(
               strokeTool,
               existing.color,
@@ -488,10 +517,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
             points: Array.isArray(s.points) ? [...s.points] : [],
             shape: s.shape ? { ...s.shape } : undefined,
           }));
-          setHasStrokes(strokesRef.current.length > 0);
+          updateHasStrokes(strokesRef.current.length > 0);
           if (
-            activeShapeId &&
-            !strokesRef.current.some((s) => s.id === activeShapeId)
+            activeShapeIdRef.current &&
+            !strokesRef.current.some((s) => s.id === activeShapeIdRef.current)
           ) {
             setActiveShapeId(null);
           }
@@ -499,18 +528,15 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         },
         clearCanvas: () => {
           strokesRef.current = [];
-          setHasStrokes(false);
+          updateHasStrokes(false);
           setActiveShapeId(null);
           redrawAllFromRef();
         },
+        getStrokesCount: () => strokesRef.current.length,
+        getStrokes: () => strokesRef.current,
+        isActivelyDrawing: () => isPointerDownRef.current,
       }),
-      [
-        roundId,
-        hasStrokes,
-        activeShapeId,
-        drawIncrementalSegmentOnCtx,
-        redrawAllFromRef,
-      ]
+      [drawIncrementalSegmentOnCtx, redrawAllFromRef, updateHasStrokes]
     );
 
     // Sync initial snapshot when roundId changes or when initialStrokes snapshot is provided
@@ -522,7 +548,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
           points: Array.isArray(s.points) ? [...s.points] : [],
           shape: s.shape ? { ...s.shape } : undefined,
         }));
-        setHasStrokes(strokesRef.current.length > 0);
+        updateHasStrokes(strokesRef.current.length > 0);
         setActiveShapeId(null);
         redrawAllFromRef();
       } else if (
@@ -535,10 +561,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
           points: Array.isArray(s.points) ? [...s.points] : [],
           shape: s.shape ? { ...s.shape } : undefined,
         }));
-        setHasStrokes(true);
+        updateHasStrokes(true);
         redrawAllFromRef();
       }
-    }, [roundId, initialStrokes, redrawAllFromRef]);
+    }, [roundId, initialStrokes, redrawAllFromRef, updateHasStrokes]);
 
     useEffect(() => {
       redrawAllFromRef();
@@ -678,8 +704,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
     };
 
     /**
-     * Rule 5, 6, 7, 8, 10: Flushes buffered points at most 20 times/sec (50ms),
-     * skips empty buffers, and caps batch size at MAX_POINTS_PER_BATCH.
+     * Flushes buffered points using stable refs so closures never go stale mid-stroke.
      */
     const flushPendingPoints = useCallback(
       (explicitPhase?: StrokePhase) => {
@@ -692,17 +717,17 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         const phaseToUse: StrokePhase = explicitPhase ?? pendingPhaseRef.current;
         pendingPhaseRef.current = 'move';
 
-        onEmitBatch({
+        onEmitBatchRef.current({
           strokeId: activeStrokeIdRef.current,
           phase: phaseToUse,
-          tool: tool === 'eraser' ? 'eraser' : 'brush',
-          color,
-          width: brushWidth,
+          tool: toolRef.current === 'eraser' ? 'eraser' : 'brush',
+          color: colorRef.current,
+          width: brushWidthRef.current,
           points: batch,
           sequence: sequenceRef.current,
         });
       },
-      [tool, color, brushWidth, onEmitBatch]
+      []
     );
 
     const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -795,7 +820,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         sequence: 1,
         createdAt: Date.now(),
       });
-      if (!hasStrokes) setHasStrokes(true);
+      updateHasStrokes(true);
 
       // Draw initial point directly on Canvas 2D without full redraw
       drawIncrementalSegmentOnCtx(strokeTool, color, brushWidth, null, [pt]);
@@ -875,7 +900,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       );
     };
 
-    const endCurrentStroke = () => {
+    const endCurrentStroke = useCallback(() => {
       if (!isPointerDownRef.current) return;
       if (shapeDragStateRef.current) {
         const { strokeId } = shapeDragStateRef.current;
@@ -899,13 +924,22 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       isPointerDownRef.current = false;
       activeStrokeIdRef.current = null;
       activePointsRef.current = [];
-    };
+    }, [flushPendingPoints, upsertShapeGeometry]);
 
     useEffect(() => {
+      const handleGlobalPointerUp = () => {
+        if (isPointerDownRef.current) {
+          endCurrentStroke();
+        }
+      };
+      window.addEventListener('pointerup', handleGlobalPointerUp);
+      window.addEventListener('pointercancel', handleGlobalPointerUp);
       return () => {
+        window.removeEventListener('pointerup', handleGlobalPointerUp);
+        window.removeEventListener('pointercancel', handleGlobalPointerUp);
         if (emitIntervalRef.current) clearInterval(emitIntervalRef.current);
       };
-    }, []);
+    }, [endCurrentStroke]);
 
     const paletteToRender = highContrast
       ? [

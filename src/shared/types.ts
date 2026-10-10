@@ -104,6 +104,8 @@ export interface DrawingBatchPayload {
   points: PointNormalized[];
   shape?: ShapeGeometry;
   sequence: number;
+  drawingRevision?: number;
+  strokesCount?: number;
 }
 
 export interface DrawingStroke {
@@ -133,6 +135,7 @@ export interface RoundGuessRecord {
   order: number;
   pointsAwarded: number;
   submittedAt: number;
+  responseTimeSec?: number;
 }
 
 export interface RoundPublicState {
@@ -159,9 +162,11 @@ export interface RoundPublicState {
   correctGuessPlayerIds: string[];
   correctGuessesOrder: RoundGuessRecord[];
   eligibleGuessersCount: number;
+  drawingRevision?: number;
   // Revealed only when status === 'ROUND_RESULT' or 'NEXT_ROUND' or 'GAME_RESULT'
   revealedWord?: string;
   drawerPointsEarned?: number;
+  drawerPointsPerPerson?: number;
   endReason?: 'time_up' | 'all_guessed' | 'drawer_finished' | 'drawer_disconnected' | 'host_ended';
 }
 

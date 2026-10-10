@@ -119,10 +119,36 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
   const canvasHandleRef = useRef<DrawingCanvasHandle | null>(null);
   const currentJoinCodeRef = useRef<string | null>(null);
   const autoJoinedRef = useRef<string | null>(null);
+  const nicknameRef = useRef<string>(nickname);
+  nicknameRef.current = nickname;
+  const avatarIdRef = useRef<number>(avatarId);
+  avatarIdRef.current = avatarId;
+  const currentDrawerIdRef = useRef<string | null>(null);
+  currentDrawerIdRef.current = roomState?.currentRound?.drawerPlayerId ?? null;
+  const localDrawingRevisionRef = useRef<number>(0);
+  const lastSyncRequestAtRef = useRef<number>(0);
+  const pendingWsQueueRef = useRef<string[]>([]);
 
   const sendWs = useCallback((event: string, payload: Record<string, unknown> = {}) => {
+    const serialized = JSON.stringify({ event, payload });
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ event, payload }));
+      try {
+        wsRef.current.send(serialized);
+        return;
+      } catch {
+        // Fall through to queue if transient socket error
+      }
+    }
+    // Queue important drawing/action events if socket is momentarily reconnecting
+    if (
+      event.startsWith('drawing:') ||
+      event === 'guess:submit' ||
+      event === 'hint:request' ||
+      event === 'theme:select'
+    ) {
+      if (pendingWsQueueRef.current.length < 150) {
+        pendingWsQueueRef.current.push(serialized);
+      }
     }
   }, []);
 
@@ -131,7 +157,6 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
     let reconnectTimer: number | null = null;
     let pingTimer: number | null = null;
     let retryAttempt = 0;
-    const MAX_RECONNECT_ATTEMPTS = 8;
 
     const connect = () => {
       if (!isMounted) return;
@@ -155,7 +180,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ event: 'ping', payload: { clientTime: Date.now() } }));
           }
-        }, 18000);
+        }, 12000);
 
         if (currentJoinCodeRef.current) {
           socket.send(
@@ -164,12 +189,24 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               payload: {
                 joinCode: currentJoinCodeRef.current,
                 playerId,
-                nickname,
-                avatarId,
+                nickname: nicknameRef.current.trim() || defaultNickname,
+                avatarId: avatarIdRef.current,
                 isReconnect: true,
               },
             })
           );
+        }
+
+        // Flush any queued packets emitted during a brief network blip
+        if (pendingWsQueueRef.current.length > 0) {
+          const queued = pendingWsQueueRef.current.splice(0, pendingWsQueueRef.current.length);
+          for (const msg of queued) {
+            if (socket.readyState === WebSocket.OPEN) {
+              try {
+                socket.send(msg);
+              } catch {}
+            }
+          }
         }
       };
 
@@ -212,6 +249,9 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
             if (incomingState.currentRound?.serverNow) {
               clockOffsetRef.current = incomingState.currentRound.serverNow - Date.now();
             }
+            if (typeof incomingState.currentRound?.drawingRevision === 'number') {
+              localDrawingRevisionRef.current = incomingState.currentRound.drawingRevision;
+            }
             if (!incomingState.omitStrokes && Array.isArray(incomingState.strokes)) {
               canvasHandleRef.current?.replaceStrokes(incomingState.strokes);
             }
@@ -221,6 +261,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 setPrivateGuessFeedback(null);
                 setSelectedThemeCard(null);
                 setGuessText('');
+                localDrawingRevisionRef.current = incomingState.currentRound?.drawingRevision ?? 0;
               }
               if (incomingState.omitStrokes && prev) {
                 return {
@@ -296,6 +337,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           } else if (event === 'round:started' || event === 'game:round-start') {
             soundManager.playRoundStart();
             setPrivateGuessFeedback(null);
+            localDrawingRevisionRef.current = 0;
             canvasHandleRef.current?.clearCanvas();
           } else if (event === 'game:timer') {
             if (payload?.serverNow) {
@@ -304,12 +346,76 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
             if (typeof payload?.remainingSeconds === 'number') {
               setRemainingSeconds(payload.remainingSeconds);
             }
+
+            // Real-time 1-second self-healing verification for all 35 players
+            if (
+              typeof payload?.drawingRevision === 'number' &&
+              typeof payload?.strokesCount === 'number' &&
+              canvasHandleRef.current
+            ) {
+              const now = Date.now();
+              const isCurrentDrawer = currentDrawerIdRef.current === playerId;
+              const localCount = canvasHandleRef.current.getStrokesCount();
+
+              if (!isCurrentDrawer) {
+                // Spectator: if revision or stroke count drifted, request instant delta snapshot
+                if (
+                  (payload.drawingRevision !== localDrawingRevisionRef.current ||
+                    payload.strokesCount !== localCount) &&
+                  now - lastSyncRequestAtRef.current > 900
+                ) {
+                  lastSyncRequestAtRef.current = now;
+                  if (socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ event: 'drawing:sync_request', payload: {} }));
+                  }
+                }
+              } else {
+                // Drawer: if drawer has strokes that the server missed during a micro-blip and is not mid-stroke, push full snapshot
+                if (
+                  localCount > payload.strokesCount &&
+                  !canvasHandleRef.current.isActivelyDrawing() &&
+                  now - lastSyncRequestAtRef.current > 1200
+                ) {
+                  lastSyncRequestAtRef.current = now;
+                  if (socket.readyState === WebSocket.OPEN) {
+                    socket.send(
+                      JSON.stringify({
+                        event: 'drawing:drawer_sync',
+                        payload: { strokes: canvasHandleRef.current.getStrokes() },
+                      })
+                    );
+                  }
+                }
+              }
+            }
           } else if (event === 'drawing:batch' || event === 'drawing:stroke') {
-            // Rule 2 & 9: Forward directly to Canvas 2D imperative handle — ZERO React re-renders!
-            canvasHandleRef.current?.applyBatch(payload as DrawingBatchPayload);
+            // Forward directly to Canvas 2D imperative handle — ZERO React re-renders!
+            const batchPayload = payload as DrawingBatchPayload;
+            canvasHandleRef.current?.applyBatch(batchPayload);
+
+            if (typeof batchPayload.drawingRevision === 'number') {
+              const expectedRev = localDrawingRevisionRef.current + 1;
+              localDrawingRevisionRef.current = batchPayload.drawingRevision;
+              // If a batch was skipped over the network, trigger an immediate background sync
+              if (
+                batchPayload.drawingRevision > expectedRev &&
+                Date.now() - lastSyncRequestAtRef.current > 900
+              ) {
+                lastSyncRequestAtRef.current = Date.now();
+                if (socket.readyState === WebSocket.OPEN) {
+                  socket.send(JSON.stringify({ event: 'drawing:sync_request', payload: {} }));
+                }
+              }
+            }
           } else if (event === 'drawing:clear') {
+            if (typeof payload?.drawingRevision === 'number') {
+              localDrawingRevisionRef.current = payload.drawingRevision;
+            }
             canvasHandleRef.current?.clearCanvas();
           } else if (event === 'drawing:state') {
+            if (typeof payload?.drawingRevision === 'number') {
+              localDrawingRevisionRef.current = payload.drawingRevision;
+            }
             canvasHandleRef.current?.replaceStrokes(payload.strokes || []);
           } else if (event === 'chat:message') {
             if (payload?.message) {
@@ -338,6 +444,17 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                     totalCorrectGuesses: p.totalCorrectGuesses + 1,
                   };
                 }
+                if (
+                  payload.drawerPlayerId &&
+                  p.id === payload.drawerPlayerId &&
+                  typeof payload.drawerTotalScore === 'number'
+                ) {
+                  return {
+                    ...p,
+                    score: payload.drawerTotalScore,
+                    roundPointsEarned: payload.drawerPointsEarned ?? p.roundPointsEarned,
+                  };
+                }
                 return p;
               });
               const nextFeed =
@@ -350,6 +467,10 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 players: nextPlayers,
                 currentRound: {
                   ...prev.currentRound,
+                  drawerPointsEarned:
+                    payload.drawerPointsEarned ?? prev.currentRound.drawerPointsEarned,
+                  drawerPointsPerPerson:
+                    payload.drawerPointsPerPerson ?? prev.currentRound.drawerPointsPerPerson,
                   correctGuessPlayerIds:
                     payload.correctGuessPlayerIds ?? prev.currentRound.correctGuessPlayerIds,
                   correctGuessesOrder:
@@ -416,18 +537,11 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
         }
         setWsConnected(false);
 
-        if (retryAttempt >= MAX_RECONNECT_ATTEMPTS) {
-          setReconnecting(false);
-          setErrorMsg(
-            'Conexão perdida com o servidor após várias tentativas. Verifique sua rede ou recarregue a página.'
-          );
-          return;
-        }
-
         if (currentJoinCodeRef.current) {
           setReconnecting(true);
         }
-        const delay = Math.min(10000, 1000 * Math.pow(1.6, retryAttempt) + Math.floor(Math.random() * 400));
+        // Fast, resilient reconnection on Render (caps at 3.5s so players never get stuck disconnected)
+        const delay = Math.min(3500, 500 * Math.pow(1.4, Math.min(retryAttempt, 6)) + Math.floor(Math.random() * 250));
         retryAttempt += 1;
         reconnectTimer = window.setTimeout(connect, delay);
       };
@@ -541,7 +655,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
       avatarId,
       settings: {
         roomName: `Arena de ${cleanNick}`,
-        maxPlayers: 32,
+        maxPlayers: 35,
       },
     });
   };
@@ -1196,7 +1310,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
 
               <div>
                 <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
-                  Limite de Jogadores (Até 32)
+                  Limite de Jogadores (Até 35)
                 </label>
                 <select
                   disabled={!isHost}
@@ -1208,7 +1322,8 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   <option value={12}>Até 12 jogadores</option>
                   <option value={16}>Até 16 jogadores</option>
                   <option value={24}>Até 24 jogadores</option>
-                  <option value={32}>Até 32 jogadores (Sala Completa)</option>
+                  <option value={32}>Até 32 jogadores</option>
+                  <option value={35}>Até 35 jogadores (Capacidade Máxima)</option>
                 </select>
               </div>
 
@@ -1621,19 +1736,17 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                               </div>
                               <div className="text-[10px] font-bold text-indigo-600/80">
                                 {isCurrentDrawer
-                                  ? '✏️ Desenhando'
+                                  ? `✏️ Desenhando (+${round.drawerPointsPerPerson ?? 0} pts/acerto)`
                                   : p.hasGuessedThisRound
-                                  ? `✅ Acertou (${p.guessOrder}º)`
+                                  ? `✅ Acertou (${p.guessOrder}º · +${p.roundPointsEarned} pts)`
                                   : 'Adivinhando'}
                               </div>
                             </div>
                           </div>
 
-                          {roomState.settings.scoringMode === 'competitive' && (
-                            <div className="font-mono text-xs font-extrabold text-indigo-950 tabular-nums shrink-0">
-                              {p.score} pts
-                            </div>
-                          )}
+                          <div className="font-mono text-xs font-extrabold text-indigo-950 tabular-nums shrink-0">
+                            {p.score} pts
+                          </div>
                         </div>
                       );
                     })}
@@ -1766,11 +1879,11 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                     ? 'Ninguém descobriu a tempo — estava difícil!'
                     : `${round.correctGuessesOrder.length} de ${round.eligibleGuessersCount} jogadores acertaram!`}
                 </div>
-                {roomState.settings.scoringMode === 'competitive' && (
-                  <div className="text-xs font-extrabold text-amber-800 font-mono tabular-nums">
-                    Artista ({round.drawerNickname}): +{round.drawerPointsEarned ?? 0} pontos
-                  </div>
-                )}
+                <div className="text-xs font-extrabold text-amber-800 font-mono tabular-nums">
+                  Artista ({round.drawerNickname}): +{round.drawerPointsEarned ?? 0} pts (
+                  {round.correctGuessesOrder.length} acertos × {round.drawerPointsPerPerson ?? 0}{' '}
+                  pts/pessoa)
+                </div>
               </div>
 
               {round.correctGuessesOrder.length > 0 && (
@@ -1788,15 +1901,20 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                           {rec.order}º
                         </span>
                         <AvatarSvg avatarId={rec.avatarId} size={34} />
-                        <span className="text-sm font-extrabold text-indigo-950">
-                          {rec.nickname}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-extrabold text-indigo-950">
+                            {rec.nickname}
+                          </span>
+                          {typeof rec.responseTimeSec === 'number' && (
+                            <span className="text-xs font-mono font-bold text-emerald-700">
+                              ({rec.responseTimeSec}s)
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {roomState.settings.scoringMode === 'competitive' && (
-                        <span className="font-mono text-xs font-extrabold text-emerald-700 tabular-nums">
-                          +{rec.pointsAwarded} pts
-                        </span>
-                      )}
+                      <span className="font-mono text-xs font-extrabold text-emerald-700 tabular-nums">
+                        +{rec.pointsAwarded} pts
+                      </span>
                     </div>
                   ))}
                 </div>

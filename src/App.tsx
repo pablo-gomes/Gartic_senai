@@ -212,9 +212,9 @@ export default function App() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 flex flex-col gap-1.5">
-                <h3 className="font-extrabold text-indigo-950 font-display">01. Escolha seu Tema</h3>
+                <h3 className="font-extrabold text-indigo-950 font-display">01. Mais de 80 Temas Sem Repetir</h3>
                 <p className="text-xs text-indigo-900/80 leading-relaxed">
-                  A cada rodada, um jogador é sorteado como <strong>Desenhista</strong>, escolhe um tema divertido e recebe uma palavra secreta para ilustrar.
+                  A cada rodada, o <strong>Desenhista</strong> escolhe entre 80+ temas diferentes. Os temas jogados não se repetem nas rodadas seguintes!
                 </p>
               </div>
 
@@ -233,9 +233,9 @@ export default function App() {
               </div>
 
               <div className="bg-rose-50 border-2 border-rose-200 rounded-2xl p-4 flex flex-col gap-1.5">
-                <h3 className="font-extrabold text-indigo-950 font-display">04. Suba no Pódio!</h3>
+                <h3 className="font-extrabold text-indigo-950 font-display">04. Velocidade &amp; Pontos por Pessoa</h3>
                 <p className="text-xs text-indigo-900/80 leading-relaxed">
-                  Quem adivinha mais rápido ganha mais pontos (100, 80, 60, 40 pts), e o desenhista também pontua pelos acertos da turma!
+                  Quanto mais rápido você acertar, mais pontos ganha (até 160 pts); perto do fim do tempo ganha menos. O desenhista ganha pontos <strong>por cada pessoa que acertar</strong>, ajustados pelo tamanho da sala!
                 </p>
               </div>
             </div>
