@@ -1,0 +1,6 @@
+{
+  "name": "Traço & Tema — Desenho e Adivinhação Multiplayer",
+  "description": "Jogo social multiplayer em tempo real de desenho e adivinhação por tema, com dicas progressivas, tela sincronizada e salas privadas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

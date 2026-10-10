@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Bricolage Grotesque', system-ui, -apple-system, sans-serif;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #0B1120;
+    background-image:
+      radial-gradient(circle at 18% 12%, rgba(245, 158, 11, 0.08), transparent 36%),
+      radial-gradient(circle at 82% 85%, rgba(16, 185, 129, 0.07), transparent 40%),
+      radial-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 24px 24px;
+    color: #F8FAFC;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+.game-panel {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(11, 17, 32, 0.98) 100%);
+  border: 1px solid rgba(51, 65, 85, 0.85);
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+.game-btn-amber {
+  background: linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%);
+  color: #090D16;
+  border-bottom: 3px solid #B45309;
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), filter 120ms ease;
+}
+.game-btn-amber:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+.game-btn-amber:active:not(:disabled) {
+  transform: translateY(1px);
+  border-bottom-width: 1px;
+}
+
+.game-btn-emerald {
+  background: linear-gradient(180deg, #34D399 0%, #10B981 100%);
+  color: #052E16;
+  border-bottom: 3px solid #047857;
+  transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1), filter 120ms ease;
+}
+.game-btn-emerald:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+.game-btn-emerald:active:not(:disabled) {
+  transform: translateY(1px);
+  border-bottom-width: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
