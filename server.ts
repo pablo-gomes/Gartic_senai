@@ -501,15 +501,34 @@ function getEligibleGuessers(room: InternalRoom, drawerId: string): InternalPlay
 }
 
 /**
- * Dynamic points per person for the drawer based on the number of eligible guessers in the room.
- * - Fewer players in the room -> higher points per correct guesser (e.g., 113 pts for 1 guesser, 58 pts for 2 guessers).
- * - More players in the room -> balanced points per correct guesser (e.g., 14 pts for 10 guessers, 6 pts for 34 guessers).
- * - Total drawer points = (number of players who guessed right) * pointsPerPerson.
+ * Dynamic inverse per-person scoring for the drawer:
+ * - O desenhista ganha `acertos × pontosPorPessoa` em tempo real a cada acerto.
+ * - Quanto menos jogadores acertarem (a partir de 1 acerto), mais o desenhista pontua;
+ *   se mais jogadores acertarem, menos ele pontua.
+ * - A quantidade de `pontosPorPessoa` varia de acordo com a quantidade de pessoas na sala.
  */
-function computeDrawerPointsPerPerson(eligibleGuessersCount: number): number {
+function computeDrawerScoring(
+  eligibleGuessersCount: number,
+  hitsCount: number
+): { pointsPerPerson: number; totalDrawerPoints: number } {
   const eligible = Math.max(1, eligibleGuessersCount);
-  const fullRoomPool = Math.min(210, 110 + eligible * 3);
-  return Math.max(6, Math.round(fullRoomPool / eligible));
+  const maxPool = Math.min(200, 120 + eligible * 2);
+  const minPool = Math.max(25, Math.round(maxPool * 0.25));
+
+  if (hitsCount <= 0) {
+    return {
+      pointsPerPerson: maxPool,
+      totalDrawerPoints: 0,
+    };
+  }
+
+  const hits = Math.min(eligible, Math.max(1, hitsCount));
+  const inverseRatio = eligible <= 1 ? 1 : (eligible - hits) / (eligible - 1);
+  const targetTotal = Math.round(minPool + (maxPool - minPool) * inverseRatio);
+  const pointsPerPerson = Math.max(1, Math.round(targetTotal / hits));
+  const totalDrawerPoints = hits * pointsPerPerson;
+
+  return { pointsPerPerson, totalDrawerPoints };
 }
 
 /**
@@ -626,7 +645,7 @@ function startRoundSetup(room: InternalRoom) {
   const themeOptions = misturado ? [...shuffled, misturado] : shuffled;
 
   const eligibleGuessers = getEligibleGuessers(room, drawer.id);
-  const initialPointsPerPerson = computeDrawerPointsPerPerson(eligibleGuessers.length);
+  const { pointsPerPerson: initialPointsPerPerson } = computeDrawerScoring(eligibleGuessers.length, 0);
 
   const round: InternalRound = {
     id: generateId('rnd'),
@@ -734,7 +753,7 @@ function startDrawingPhase(room: InternalRoom) {
   }
 
   round.eligibleGuessersCount = getEligibleGuessers(room, round.drawerPlayerId).length;
-  round.drawerPointsPerPerson = computeDrawerPointsPerPerson(round.eligibleGuessersCount);
+  round.drawerPointsPerPerson = computeDrawerScoring(round.eligibleGuessersCount, 0).pointsPerPerson;
   round.status = 'DRAWING';
   room.status = 'DRAWING';
 
@@ -788,9 +807,11 @@ function endRound(
   room.status = 'ROUND_RESULT';
 
   const hits = round.correctGuessPlayerIds.length;
-  const pointsPerPerson = computeDrawerPointsPerPerson(round.eligibleGuessersCount);
+  const { pointsPerPerson, totalDrawerPoints: finalDrawerPts } = computeDrawerScoring(
+    round.eligibleGuessersCount,
+    hits
+  );
   round.drawerPointsPerPerson = pointsPerPerson;
-  const finalDrawerPts = hits * pointsPerPerson;
 
   const deltaDrawerPts = finalDrawerPts - round.drawerPointsEarned;
   round.drawerPointsEarned = finalDrawerPts;
@@ -2038,14 +2059,17 @@ async function startServer() {
           player.score += pts;
           player.roundPointsEarned = pts;
 
-          // 2. Per-person dynamic drawer points: scales with number of players in the room
+          // 2. Inverse per-person dynamic drawer points:
+          // Drawer earns acertos * pontosPorPessoa (fewer guessers = higher drawer points; more guessers = lower drawer points)
           round.eligibleGuessersCount = Math.max(
             round.correctGuessPlayerIds.length,
             getEligibleGuessers(room, round.drawerPlayerId).length
           );
-          const pointsPerPerson = computeDrawerPointsPerPerson(round.eligibleGuessersCount);
+          const { pointsPerPerson, totalDrawerPoints: newDrawerRoundTotal } = computeDrawerScoring(
+            round.eligibleGuessersCount,
+            round.correctGuessPlayerIds.length
+          );
           round.drawerPointsPerPerson = pointsPerPerson;
-          const newDrawerRoundTotal = round.correctGuessPlayerIds.length * pointsPerPerson;
           const drawerDelta = newDrawerRoundTotal - round.drawerPointsEarned;
           round.drawerPointsEarned = newDrawerRoundTotal;
 
@@ -2066,7 +2090,7 @@ async function startServer() {
           };
           round.correctGuessesOrder.push(record);
 
-          const hitMsg = `${player.nickname} acertou em ${responseTimeSec}s! (+${pts} pts · Desenhista +${pointsPerPerson} pts)`;
+          const hitMsg = `${player.nickname} acertou em ${responseTimeSec}s! (+${pts} pts · Desenhista: ${round.correctGuessPlayerIds.length}×${pointsPerPerson} = ${newDrawerRoundTotal} pts)`;
           const feedMsg = addFeedMessage(room, 'correct_guess', hitMsg, player.nickname);
 
           sendToPlayer(player, 'guess:feedback', {

@@ -235,7 +235,7 @@ export default function App() {
               <div className="bg-rose-50 border-2 border-rose-200 rounded-2xl p-4 flex flex-col gap-1.5">
                 <h3 className="font-extrabold text-indigo-950 font-display">04. Velocidade &amp; Pontos por Pessoa</h3>
                 <p className="text-xs text-indigo-900/80 leading-relaxed">
-                  Quanto mais rápido você acertar, mais pontos ganha (até 160 pts); perto do fim do tempo ganha menos. O desenhista ganha pontos <strong>por cada pessoa que acertar</strong>, ajustados pelo tamanho da sala!
+                  Quanto mais rápido você acertar, mais pontos ganha (até 160 pts). O desenhista ganha <strong>acertos × pontosPorPessoa</strong> em tempo real (quanto menos jogadores acertarem, mais o desenhista pontua; se mais jogadores acertarem, menos ele pontua)!
                 </p>
               </div>
             </div>
