@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Volume2, VolumeX, Music, X, Columns2, CheckCircle2 } from 'lucide-react';
+import { Volume2, VolumeX, Music, X, Columns2, CheckCircle2, Palette } from 'lucide-react';
 import { GameClientView } from './components/GameClientView';
 import { CatalogModerationModal } from './components/CatalogModerationModal';
 import { soundManager } from './utils/sound';
@@ -53,33 +53,38 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0F172A] text-[#F8FAFC]">
-      {/* Strict 3-Zone Top Bar Contract */}
-      <header className="flex items-center justify-between gap-8 px-6 py-3.5 border-b border-slate-800 bg-slate-950/90 sticky top-0 z-30">
-        {/* Zone 1: Single text element wordmark */}
+    <div className="min-h-screen flex flex-col text-indigo-950">
+      {/* Party Game Top Bar */}
+      <header className="flex items-center justify-between gap-6 px-5 sm:px-8 py-3 bg-indigo-950/85 backdrop-blur-md border-b-2 border-indigo-400/30 sticky top-0 z-30 shadow-md">
+        {/* Zone 1: Expressive Game Logo & Wordmark */}
         <a
           href="/"
-          className="text-lg font-bold tracking-tight text-white whitespace-nowrap shrink-0 font-display"
+          className="flex items-center gap-2.5 text-xl font-extrabold tracking-tight text-white whitespace-nowrap shrink-0 font-display group"
         >
-          Traço & Tema
+          <span className="w-9 h-9 rounded-xl bg-amber-400 border-2 border-amber-200 flex items-center justify-center text-indigo-950 shadow-sm group-hover:rotate-6 transition-transform">
+            <Palette className="w-5 h-5 stroke-[2.5]" />
+          </span>
+          <span>
+            Traço <span className="text-amber-300">&amp;</span> Tema
+          </span>
         </a>
 
-        {/* Zone 2: 4 concise single-line text navigation links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
+        {/* Zone 2: Clean single-line text navigation links */}
+        <nav className="hidden md:flex items-center gap-6 text-sm font-bold text-indigo-100">
           <button
             type="button"
             onClick={() => {
               setShowRulesModal(false);
               setShowAudioModal(false);
             }}
-            className="hover:text-white hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="hover:text-amber-300 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             Sala de Jogo
           </button>
           <button
             type="button"
             onClick={() => setShowRulesModal(true)}
-            className="hover:text-white hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="hover:text-amber-300 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             Como Jogar
           </button>
@@ -88,28 +93,28 @@ export default function App() {
             onClick={() =>
               setModerationModalCtx((prev) => ({ ...prev, isOpen: true }))
             }
-            className="hover:text-white hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="hover:text-amber-300 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            Catálogo
+            Catálogo de Palavras
           </button>
           <button
             type="button"
             onClick={() => setShowAudioModal(true)}
-            className="hover:text-white hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="hover:text-amber-300 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            Opções de Áudio
+            Áudio &amp; Som
           </button>
         </nav>
 
-        {/* Zone 3: 1 primary action */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Zone 3: Primary Action */}
+        <div className="flex items-center gap-2.5 shrink-0">
           <button
             type="button"
             onClick={() => setSplitScreenMode((prev) => !prev)}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
+            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
               splitScreenMode
-                ? 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
-                : 'bg-amber-500 text-slate-950 hover:bg-amber-400'
+                ? 'game-btn-emerald'
+                : 'game-btn-amber'
             }`}
             title="Abre um 2º cliente multiplayer via WebSocket ao lado para testar Desenhista e Adivinhador na mesma tela"
           >
@@ -125,12 +130,12 @@ export default function App() {
       <main className="flex-1 flex flex-col">
         {splitScreenMode ? (
           <div className="w-full max-w-[1600px] mx-auto px-3 py-3 grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
-            <div className="border border-slate-800 rounded-2xl bg-slate-950/50 overflow-hidden">
-              <div className="bg-slate-900 px-4 py-2 border-b border-slate-800 flex items-center justify-between text-xs">
-                <span className="font-bold text-amber-400">
-                  Cliente WebSocket #1 (Jogador Principal)
+            <div className="border-3 border-indigo-300/70 rounded-3xl bg-indigo-950/35 overflow-hidden shadow-xl">
+              <div className="bg-indigo-900/90 px-4 py-2 border-b border-indigo-400/30 flex items-center justify-between text-xs">
+                <span className="font-extrabold text-amber-300">
+                  Jogador #1 (Anfitrião / Tela Principal)
                 </span>
-                <span className="text-slate-400">Sessão independente</span>
+                <span className="text-indigo-200 font-medium">Conectado via WebSocket</span>
               </div>
               <GameClientView
                 clientSlotId="p1"
@@ -145,15 +150,15 @@ export default function App() {
               />
             </div>
 
-            <div className="border border-slate-800 rounded-2xl bg-slate-950/50 overflow-hidden">
-              <div className="bg-slate-900 px-4 py-2 border-b border-slate-800 flex items-center justify-between text-xs">
-                <span className="font-bold text-emerald-400">
-                  Cliente WebSocket #2 (Convidado em Tempo Real)
+            <div className="border-3 border-indigo-300/70 rounded-3xl bg-indigo-950/35 overflow-hidden shadow-xl">
+              <div className="bg-indigo-900/90 px-4 py-2 border-b border-indigo-400/30 flex items-center justify-between text-xs">
+                <span className="font-extrabold text-emerald-300">
+                  Jogador #2 (Convidado em Tempo Real)
                 </span>
-                <span className="text-slate-400">
+                <span className="text-indigo-200 font-medium">
                   {activeJoinCode
                     ? `Conectado à sala #${activeJoinCode}`
-                    : 'Crie uma sala no Cliente #1 para conectar'}
+                    : 'Crie uma sala no Jogador #1 para conectar'}
                 </span>
               </div>
               <GameClientView
@@ -185,145 +190,145 @@ export default function App() {
       {/* Rules / How to Play Modal */}
       {showRulesModal && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-indigo-950/75 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="rules-title"
         >
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 flex flex-col gap-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 id="rules-title" className="text-lg font-bold text-white">
-                Como Jogar — Traço & Tema
+          <div className="game-panel rounded-3xl max-w-2xl w-full p-6 sm:p-7 flex flex-col gap-5">
+            <div className="flex items-center justify-between border-b-2 border-indigo-100 pb-3">
+              <h2 id="rules-title" className="text-xl font-extrabold text-indigo-950 font-display">
+                Como Jogar — Traço &amp; Tema
               </h2>
               <button
                 type="button"
                 onClick={() => setShowRulesModal(false)}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                className="p-2 rounded-xl text-indigo-500 hover:text-indigo-950 hover:bg-indigo-50 cursor-pointer"
                 aria-label="Fechar"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-slate-300">
-              <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col gap-2">
-                <h3 className="font-bold text-white">01. Escolha de Tema e Palavra</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  A cada rodada, um jogador assume o papel de <strong>Desenhista</strong>, escolhe um tema e recebe uma palavra secreta exclusiva. Os demais jogadores veem apenas o tema público.
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 flex flex-col gap-1.5">
+                <h3 className="font-extrabold text-indigo-950 font-display">01. Escolha seu Tema</h3>
+                <p className="text-xs text-indigo-900/80 leading-relaxed">
+                  A cada rodada, um jogador é sorteado como <strong>Desenhista</strong>, escolhe um tema divertido e recebe uma palavra secreta para ilustrar.
                 </p>
               </div>
 
-              <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col gap-2">
-                <h3 className="font-bold text-white">02. Desenho e Palpites Simultâneos</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Enquanto o desenhista ilustra a ideia no canvas sincronizado, os adivinhadores enviam palpites. Palpites incorretos são privados para não entregar respostas aos demais.
+              <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4 flex flex-col gap-1.5">
+                <h3 className="font-extrabold text-indigo-950 font-display">02. Pincel Livre &amp; Formas</h3>
+                <p className="text-xs text-indigo-900/80 leading-relaxed">
+                  Use o pincel colorido ou adicione formas geométricas redimensionáveis na folha. Os outros jogadores tentam adivinhar em tempo real!
                 </p>
               </div>
 
-              <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col gap-2">
-                <h3 className="font-bold text-white">03. Dicas Progressivas</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  O desenhista pode liberar até 3 dicas (contextuais, em níveis ou revelação de letras) com intervalo mínimo de 5 segundos para ajudar a sala.
+              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 flex flex-col gap-1.5">
+                <h3 className="font-extrabold text-indigo-950 font-display">03. Dicas de Letras</h3>
+                <p className="text-xs text-indigo-900/80 leading-relaxed">
+                  Veja a quantidade exata de letras no topo e clique nos quadradinhos ou no botão de dica para revelar letras e ajudar a sala!
                 </p>
               </div>
 
-              <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col gap-2">
-                <h3 className="font-bold text-white">04. Pontuação Competitiva ou Casual</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  No modo competitivo: 1º acerto ganha 100 pts, 2º 80 pts, 3º 60 pts e demais 40 pts. O desenhista ganha 50 pts (+15 bônus se a maioria acertar), menos 10 pts por dica usada.
+              <div className="bg-rose-50 border-2 border-rose-200 rounded-2xl p-4 flex flex-col gap-1.5">
+                <h3 className="font-extrabold text-indigo-950 font-display">04. Suba no Pódio!</h3>
+                <p className="text-xs text-indigo-900/80 leading-relaxed">
+                  Quem adivinha mais rápido ganha mais pontos (100, 80, 60, 40 pts), e o desenhista também pontua pelos acertos da turma!
                 </p>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-slate-800">
+            <div className="flex justify-end pt-2 border-t-2 border-indigo-100">
               <button
                 type="button"
                 onClick={() => setShowRulesModal(false)}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
+                className="game-btn-amber px-6 py-2.5 rounded-xl font-extrabold text-sm cursor-pointer"
               >
-                Entendi, Vamos Jogar
+                Entendi, Vamos Jogar!
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Audio Settings Modal (Section 12.2 & 16.5) */}
+      {/* Audio Settings Modal */}
       {showAudioModal && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-indigo-950/75 backdrop-blur-xs flex items-center justify-center p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="audio-title"
         >
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 flex flex-col gap-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 id="audio-title" className="text-lg font-bold text-white">
-                Configurações de Áudio
+          <div className="game-panel rounded-3xl max-w-md w-full p-6 flex flex-col gap-5">
+            <div className="flex items-center justify-between border-b-2 border-indigo-100 pb-3">
+              <h2 id="audio-title" className="text-xl font-extrabold text-indigo-950 font-display">
+                Áudio &amp; Efeitos Sonoros
               </h2>
               <button
                 type="button"
                 onClick={() => setShowAudioModal(false)}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                className="p-2 rounded-xl text-indigo-500 hover:text-indigo-950 hover:bg-indigo-50 cursor-pointer"
                 aria-label="Fechar"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between bg-slate-950/70 border border-slate-800 rounded-xl p-3.5">
+            <div className="flex flex-col gap-3.5">
+              <div className="flex items-center justify-between bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5">
                 <div className="flex items-center gap-3">
                   {sfxEnabled ? (
-                    <Volume2 className="w-5 h-5 text-amber-400" />
+                    <Volume2 className="w-5 h-5 text-indigo-600" />
                   ) : (
-                    <VolumeX className="w-5 h-5 text-slate-500" />
+                    <VolumeX className="w-5 h-5 text-slate-400" />
                   )}
                   <div>
-                    <div className="text-sm font-semibold text-white">Efeitos Sonoros</div>
-                    <div className="text-xs text-slate-400">
-                      Início de rodada, acertos, dicas e últimos segundos
+                    <div className="text-sm font-extrabold text-indigo-950">Efeitos Sonoros</div>
+                    <div className="text-xs text-indigo-800/75">
+                      Sons de rodada, acertos, dicas e relógio
                     </div>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleToggleSfx}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
                     sfxEnabled
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                      : 'bg-slate-800 text-slate-400 border border-slate-700'
+                      ? 'bg-emerald-500 text-white shadow-2xs'
+                      : 'bg-slate-200 text-slate-600'
                   }`}
                 >
-                  {sfxEnabled ? 'Ativado' : 'Desativado'}
+                  {sfxEnabled ? 'Ligado' : 'Mudo'}
                 </button>
               </div>
 
-              <div className="flex items-center justify-between bg-slate-950/70 border border-slate-800 rounded-xl p-3.5">
+              <div className="flex items-center justify-between bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5">
                 <div className="flex items-center gap-3">
-                  <Music className={`w-5 h-5 ${musicEnabled ? 'text-amber-400' : 'text-slate-500'}`} />
+                  <Music className={`w-5 h-5 ${musicEnabled ? 'text-indigo-600' : 'text-slate-400'}`} />
                   <div>
-                    <div className="text-sm font-semibold text-white">Trilha Ambiente Suave</div>
-                    <div className="text-xs text-slate-400">
-                      Notas sintetizadas discretas de fundo
+                    <div className="text-sm font-extrabold text-indigo-950">Trilha Ambiente</div>
+                    <div className="text-xs text-indigo-800/75">
+                      Notas musicais suaves durante a partida
                     </div>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleToggleMusic}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
                     musicEnabled
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                      : 'bg-slate-800 text-slate-400 border border-slate-700'
+                      ? 'bg-emerald-500 text-white shadow-2xs'
+                      : 'bg-slate-200 text-slate-600'
                   }`}
                 >
-                  {musicEnabled ? 'Ativada' : 'Desativada'}
+                  {musicEnabled ? 'Ligada' : 'Muda'}
                 </button>
               </div>
 
-              <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+              <div className="bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5 flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs font-extrabold text-indigo-950">
                   <span>Volume Geral</span>
                   <span className="font-mono tabular-nums">{Math.round(volume * 100)}%</span>
                 </div>
@@ -334,14 +339,14 @@ export default function App() {
                   step={0.05}
                   value={volume}
                   onChange={(e) => setVolume(Number(e.target.value))}
-                  className="w-full accent-amber-500"
+                  className="w-full accent-indigo-600 cursor-pointer"
                 />
               </div>
             </div>
 
-            <div className="text-xs text-slate-400 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>O jogo funciona integralmente com ou sem áudio ativado.</span>
+            <div className="text-xs text-indigo-900/75 flex items-center gap-2 font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Todos os avisos visuais funcionam com ou sem som.</span>
             </div>
           </div>
         </div>

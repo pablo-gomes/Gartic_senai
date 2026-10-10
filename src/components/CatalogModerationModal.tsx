@@ -105,21 +105,21 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-indigo-950/75 backdrop-blur-xs flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-catalog-title"
     >
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+      <div className="game-panel rounded-3xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-          <h2 id="modal-catalog-title" className="text-lg font-bold text-white">
-            Catálogo de Palavras & Moderação
+        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-indigo-100">
+          <h2 id="modal-catalog-title" className="text-xl font-extrabold text-indigo-950 font-display">
+            Catálogo de Palavras &amp; Moderação
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-xl text-indigo-500 hover:text-indigo-950 hover:bg-indigo-50 transition-colors cursor-pointer"
             aria-label="Fechar janela"
           >
             <X className="w-5 h-5" />
@@ -127,28 +127,28 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
         </div>
 
         {/* Interactive Filter Tabs */}
-        <div className="px-6 pt-4 flex items-center gap-2 border-b border-slate-800 pb-3">
+        <div className="px-6 pt-4 flex items-center gap-2 border-b-2 border-indigo-100 pb-3">
           <button
             type="button"
             onClick={() => setActiveTab('catalog')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'catalog'
-                ? 'bg-amber-500 text-slate-950'
-                : 'bg-slate-800 text-slate-300 hover:text-white'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
             }`}
           >
-            Moderação do Catálogo ({words.length} palavras)
+            Palavras do Jogo ({words.length})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('report')}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'report'
-                ? 'bg-amber-500 text-slate-950'
-                : 'bg-slate-800 text-slate-300 hover:text-white'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
             }`}
           >
-            Denunciar Comportamento ou Conteúdo
+            Reportar Comportamento
           </button>
         </div>
 
@@ -157,15 +157,15 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
           {activeTab === 'catalog' ? (
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-slate-300">
-                  Ative ou desative palavras do sorteio da sala para adequar a partida ao grupo.
+                <p className="text-sm text-indigo-900/80 font-medium">
+                  Ative ou desative palavras do sorteio da sala para personalizar a partida.
                 </p>
                 <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-slate-400" />
+                  <Filter className="w-4 h-4 text-indigo-600" />
                   <select
                     value={selectedTheme}
                     onChange={(e) => setSelectedTheme(e.target.value)}
-                    className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400"
+                    className="bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
                     aria-label="Filtrar por tema"
                   >
                     <option value="all">Todos os Temas</option>
@@ -179,7 +179,7 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
               </div>
 
               {loading ? (
-                <div className="py-12 text-center text-sm text-slate-400">
+                <div className="py-12 text-center text-sm font-bold text-indigo-600">
                   Carregando catálogo...
                 </div>
               ) : (
@@ -189,15 +189,15 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
                     return (
                       <div
                         key={w.id}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                        className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-colors ${
                           w.enabled
-                            ? 'bg-slate-800/70 border-slate-700 text-slate-100'
-                            : 'bg-slate-900/40 border-slate-800 text-slate-500'
+                            ? 'bg-indigo-50/70 border-indigo-200 text-indigo-950'
+                            : 'bg-slate-100 border-slate-200 text-slate-400'
                         }`}
                       >
                         <div className="min-w-0 pr-2">
-                          <div className="text-sm font-semibold truncate">{w.text}</div>
-                          <div className="text-xs text-slate-400 flex items-center gap-1.5">
+                          <div className="text-sm font-extrabold truncate">{w.text}</div>
+                          <div className="text-xs text-indigo-700/75 flex items-center gap-1.5 font-medium">
                             <span>{themeObj?.name ?? w.themeId}</span>
                             <span aria-hidden="true">·</span>
                             <span>{w.difficulty === 'easy' ? 'Fácil' : 'Médio'}</span>
@@ -206,10 +206,10 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleToggleWord(w.id, !w.enabled)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+                          className={`px-2.5 py-1.5 rounded-xl text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                             w.enabled
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                              : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white'
+                              ? 'bg-emerald-500 text-white shadow-2xs'
+                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                           }`}
                         >
                           {w.enabled ? 'Ativa' : 'Inativa'}
@@ -222,19 +222,19 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
             </div>
           ) : (
             <form onSubmit={handleSubmitReport} className="flex flex-col gap-4 max-w-lg">
-              <p className="text-sm text-slate-300">
-                Use este formulário para reportar apelidos inadequados, spam ou conduta antidesportiva durante a sessão.
+              <p className="text-sm text-indigo-900/80 font-medium">
+                Use este formulário para reportar apelidos inadequados ou conduta antidesportiva durante a partida.
               </p>
 
               {players.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
                     Jogador envolvido (opcional)
                   </label>
                   <select
                     value={targetPlayerId}
                     onChange={(e) => setTargetPlayerId(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
                   >
                     <option value="">Selecionar participante...</option>
                     {players.map((p) => (
@@ -247,7 +247,7 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
                   Descrição da ocorrência
                 </label>
                 <textarea
@@ -256,21 +256,21 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
                   onChange={(e) => setReportReason(e.target.value)}
                   placeholder="Explique brevemente o que aconteceu..."
                   maxLength={200}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400"
+                  className="w-full bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-indigo-950 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               {reportError && (
-                <div className="flex items-center gap-2 text-xs text-red-300 bg-red-950/60 border border-red-800/60 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-rose-800 bg-rose-100 border-2 border-rose-300 rounded-xl px-3.5 py-2.5">
                   <ShieldAlert className="w-4 h-4 shrink-0" />
                   <span>{reportError}</span>
                 </div>
               )}
 
               {reportSubmitted && (
-                <div className="flex items-center gap-2 text-xs text-emerald-300 bg-emerald-950/60 border border-emerald-800/60 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 bg-emerald-100 border-2 border-emerald-300 rounded-xl px-3.5 py-2.5">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>Registro de moderação enviado com sucesso.</span>
+                  <span>Registro de moderação enviado com sucesso!</span>
                 </div>
               )}
 
@@ -278,7 +278,7 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
                 <button
                   type="button"
                   onClick={handleSubmitReport}
-                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-sm rounded-lg transition-colors whitespace-nowrap"
+                  className="game-btn-amber px-6 py-2.5 font-extrabold text-sm rounded-xl whitespace-nowrap cursor-pointer"
                 >
                   Enviar Denúncia
                 </button>

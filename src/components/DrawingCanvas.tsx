@@ -919,24 +919,24 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       : DRAWING_PALETTE;
 
     return (
-      <div className="flex flex-col gap-2 w-full">
-        {/* TOP DOCKED TOOLBAR FOR DRAWER — Always visible right above the canvas without scrolling! */}
+      <div className="flex flex-col gap-2.5 w-full">
+        {/* TOP DOCKED STUDIO TOOLBAR FOR DRAWER — Always visible right above the canvas without scrolling! */}
         {canInteract && (
-          <div className="bg-slate-900/95 border border-slate-700/90 rounded-2xl p-2.5 flex flex-col gap-2 shadow-lg">
+          <div className="bg-white border-2 border-indigo-200 rounded-2xl p-2.5 flex flex-col gap-2 shadow-md">
             {/* Bar 1: Tools + Colors + Thickness + History in a single compact row */}
             <div className="flex flex-wrap items-center justify-between gap-2">
               {/* Primary Tool Selector */}
-              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <div className="flex items-center gap-1 bg-indigo-50/90 p-1 rounded-xl border border-indigo-200/80">
                 <button
                   type="button"
                   onClick={() => {
                     setTool('brush');
                     setActiveShapeId(null);
                   }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                     tool === 'brush'
-                      ? 'bg-amber-500 text-slate-950'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      ? 'bg-indigo-600 text-white shadow-sm scale-[1.02]'
+                      : 'text-indigo-900 hover:bg-indigo-100'
                   }`}
                 >
                   <Brush className="w-3.5 h-3.5" />
@@ -946,10 +946,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 <button
                   type="button"
                   onClick={() => setTool('shape')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                     tool === 'shape'
-                      ? 'bg-amber-500 text-slate-950'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      ? 'bg-indigo-600 text-white shadow-sm scale-[1.02]'
+                      : 'text-indigo-900 hover:bg-indigo-100'
                   }`}
                 >
                   <Square className="w-3.5 h-3.5" />
@@ -962,10 +962,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                     setTool('eraser');
                     setActiveShapeId(null);
                   }}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                     tool === 'eraser'
-                      ? 'bg-amber-500 text-slate-950'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      ? 'bg-indigo-600 text-white shadow-sm scale-[1.02]'
+                      : 'text-indigo-900 hover:bg-indigo-100'
                   }`}
                 >
                   <Eraser className="w-3.5 h-3.5" />
@@ -975,7 +975,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
 
               {/* Color Palette Inline */}
               <div
-                className="flex flex-wrap items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800"
+                className="flex flex-wrap items-center gap-1.5 bg-indigo-50/90 px-2.5 py-1.5 rounded-xl border border-indigo-200/80"
                 role="radiogroup"
                 aria-label="Paleta de cores"
               >
@@ -1002,17 +1002,17 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                       aria-checked={isSelected}
                       aria-label={swatch.name}
                       title={swatch.name}
-                      className={`relative w-6 h-6 rounded-lg border transition-transform flex items-center justify-center cursor-pointer ${
+                      className={`relative w-6 h-6 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
                         isSelected
-                          ? 'border-white scale-115 ring-2 ring-amber-400 z-10'
-                          : 'border-white/25 hover:scale-105'
+                          ? 'border-indigo-950 scale-120 ring-2 ring-amber-400 z-10 shadow-sm'
+                          : 'border-white hover:scale-110 shadow-2xs'
                       }`}
                       style={{ backgroundColor: swatch.hex }}
                     >
                       {isSelected && (
                         <Check
-                          className={`w-3.5 h-3.5 ${
-                            swatch.hex === '#FACC15' ? 'text-slate-950' : 'text-white'
+                          className={`w-3.5 h-3.5 stroke-[3] ${
+                            swatch.hex === '#FACC15' ? 'text-indigo-950' : 'text-white'
                           }`}
                         />
                       )}
@@ -1024,8 +1024,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                   onClick={() => setHighContrast((prev) => !prev)}
                   className={`p-1 rounded-lg text-xs border transition-colors cursor-pointer ${
                     highContrast
-                      ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                      ? 'bg-amber-400 border-amber-600 text-indigo-950'
+                      : 'bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-100'
                   }`}
                   title="Alternar paleta de alto contraste"
                 >
@@ -1035,7 +1035,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
 
               {/* Stroke Width Selector */}
               <div
-                className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800"
+                className="flex items-center gap-1 bg-indigo-50/90 p-1 rounded-xl border border-indigo-200/80"
                 role="group"
                 aria-label="Espessura do traço"
               >
@@ -1057,10 +1057,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                           );
                         }
                       }}
-                      className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                         active
-                          ? 'bg-slate-800 text-amber-300 border border-amber-400/50'
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                          ? 'bg-amber-400 text-indigo-950 border border-amber-500 shadow-2xs'
+                          : 'text-indigo-800 hover:bg-indigo-100'
                       }`}
                       title={`Espessura: ${bw.label}`}
                     >
@@ -1083,7 +1083,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                   type="button"
                   onClick={onUndo}
                   disabled={!hasStrokes}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:opacity-40 disabled:pointer-events-none text-slate-200 text-xs font-semibold border border-slate-800 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40 disabled:pointer-events-none text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors cursor-pointer"
                   title="Desfazer (Ctrl+Z)"
                 >
                   <Undo2 className="w-3.5 h-3.5" />
@@ -1092,7 +1092,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 <button
                   type="button"
                   onClick={onRedo}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-200 text-xs font-semibold border border-slate-800 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors cursor-pointer"
                   title="Refazer (Ctrl+Y)"
                 >
                   <Redo2 className="w-3.5 h-3.5" />
@@ -1104,16 +1104,16 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                     type="button"
                     onClick={() => setConfirmClear(true)}
                     disabled={!hasStrokes}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-950/60 hover:bg-red-900/70 disabled:opacity-40 disabled:pointer-events-none text-red-200 text-xs font-semibold border border-red-800/60 transition-colors cursor-pointer"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 disabled:opacity-40 disabled:pointer-events-none text-rose-700 text-xs font-bold border border-rose-200 transition-colors cursor-pointer"
                     title="Limpar todo o desenho"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Limpar</span>
                   </button>
                 ) : (
-                  <div className="flex items-center gap-1 bg-red-950/90 border border-red-500/60 rounded-xl px-2 py-1">
-                    <span className="text-[11px] text-red-200 font-semibold whitespace-nowrap">
-                      Limpar?
+                  <div className="flex items-center gap-1 bg-rose-100 border border-rose-300 rounded-xl px-2 py-1">
+                    <span className="text-[11px] text-rose-900 font-bold whitespace-nowrap">
+                      Limpar folha?
                     </span>
                     <button
                       type="button"
@@ -1125,14 +1125,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                         redrawAllFromRef();
                         onClear();
                       }}
-                      className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-bold cursor-pointer"
+                      className="px-2 py-0.5 rounded-md bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
                     >
                       Sim
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmClear(false)}
-                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs cursor-pointer"
+                      className="px-2 py-0.5 rounded-md bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer"
                     >
                       Não
                     </button>
@@ -1143,7 +1143,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
 
             {/* Bar 2: GEOMETRIC SHAPES & SIZE CONTROLS (Right above the canvas!) */}
             {(tool === 'shape' || (activeShapeStroke && activeShapeStroke.shape)) && (
-              <div className="bg-slate-950/95 border border-amber-500/40 rounded-xl px-3 py-2 flex flex-col gap-2">
+              <div className="bg-amber-50/90 border-2 border-amber-300 rounded-xl px-3 py-2 flex flex-col gap-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-1">
                     {SHAPE_OPTIONS.map((sh) => {
@@ -1168,10 +1168,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                               );
                             }
                           }}
-                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                             isSelected
-                              ? 'bg-amber-500 text-slate-950 border-amber-300'
-                              : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-600 hover:text-white'
+                              ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs'
+                              : 'bg-white text-indigo-900 border-amber-300 hover:bg-amber-100'
                           }`}
                         >
                           {sh.icon}
@@ -1200,10 +1200,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                           );
                         }
                       }}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                         (activeShapeStroke?.shape?.filled ?? shapeFilled)
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
-                          : 'bg-slate-900 text-slate-300 border-slate-700 hover:text-white'
+                          ? 'bg-emerald-500 text-white border-emerald-600'
+                          : 'bg-white text-indigo-900 border-amber-300 hover:bg-amber-100'
                       }`}
                     >
                       <PaintBucket className="w-3.5 h-3.5" />
@@ -1217,7 +1217,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                     <button
                       type="button"
                       onClick={() => handleInsertShapeCenter()}
-                      className="flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                      className="flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-indigo-950 border border-amber-500 font-extrabold text-xs transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Inserir Forma</span>
@@ -1227,9 +1227,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
 
                 {/* Live Size Sliders when a Shape is Selected */}
                 {activeShapeStroke && activeShapeStroke.shape && (
-                  <div className="pt-1.5 border-t border-slate-800/90 flex flex-wrap items-center justify-between gap-3">
+                  <div className="pt-1.5 border-t border-amber-200 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2 flex-1 min-w-[160px]">
-                      <span className="text-[11px] font-semibold text-slate-300 whitespace-nowrap">
+                      <span className="text-[11px] font-bold text-indigo-950 whitespace-nowrap">
                         Largura ({Math.round(activeShapeStroke.shape.w * 100)}%):
                       </span>
                       <input
@@ -1250,12 +1250,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                             true
                           );
                         }}
-                        className="flex-1 accent-amber-500 cursor-pointer h-1.5"
+                        className="flex-1 accent-indigo-600 cursor-pointer h-1.5"
                       />
                     </div>
 
                     <div className="flex items-center gap-2 flex-1 min-w-[160px]">
-                      <span className="text-[11px] font-semibold text-slate-300 whitespace-nowrap">
+                      <span className="text-[11px] font-bold text-indigo-950 whitespace-nowrap">
                         Altura ({Math.round(activeShapeStroke.shape.h * 100)}%):
                       </span>
                       <input
@@ -1276,7 +1276,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                             true
                           );
                         }}
-                        className="flex-1 accent-amber-500 cursor-pointer h-1.5"
+                        className="flex-1 accent-indigo-600 cursor-pointer h-1.5"
                       />
                     </div>
 
@@ -1303,7 +1303,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                               true
                             )
                           }
-                          className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono font-bold text-slate-200 border border-slate-700 cursor-pointer"
+                          className="px-2 py-0.5 rounded-md bg-white hover:bg-amber-100 text-[11px] font-mono font-bold text-indigo-950 border border-amber-300 cursor-pointer"
                           title={`Ajustar tamanho para ${preset.label}`}
                         >
                           {preset.label}
@@ -1312,7 +1312,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                       <button
                         type="button"
                         onClick={() => setActiveShapeId(null)}
-                        className="ml-1 px-2.5 py-0.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-bold cursor-pointer"
+                        className="ml-1 px-2.5 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold cursor-pointer"
                       >
                         Fixar
                       </button>
@@ -1324,12 +1324,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
           </div>
         )}
 
-        {/* Main Shorter & Wider Canvas Container */}
+        {/* Main Artist Sketchbook / Easel Canvas Container */}
         <div
-          className={`relative w-full aspect-[800/420] max-h-[380px] bg-white rounded-2xl overflow-hidden border-2 transition-all ${
+          className={`relative w-full aspect-[800/420] max-h-[390px] bg-white rounded-3xl overflow-hidden border-4 transition-all ${
             canInteract
-              ? 'border-amber-400/90 shadow-xl'
-              : 'border-slate-700/90 shadow-lg'
+              ? 'border-amber-400 shadow-[0_8px_0_#B45309,0_12px_24px_rgba(30,27,75,0.25)]'
+              : 'border-indigo-200 shadow-[0_6px_0_#312E81,0_10px_20px_rgba(30,27,75,0.2)]'
           }`}
         >
           <canvas
@@ -1352,26 +1352,26 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
           />
 
           {canInteract && (
-            <div className="absolute top-2.5 left-2.5 pointer-events-none flex items-center gap-1.5 bg-slate-950/85 text-slate-100 px-2.5 py-1 rounded-lg border border-slate-700 text-[11px] font-semibold">
+            <div className="absolute top-3 left-3 pointer-events-none flex items-center gap-1.5 bg-indigo-950/90 text-white px-3 py-1 rounded-xl text-[11px] font-bold shadow-sm">
               {tool === 'brush' && (
                 <>
-                  <Brush className="w-3 h-3 text-amber-400" />
+                  <Brush className="w-3.5 h-3.5 text-amber-300" />
                   <span>Pincel</span>
                   <span
-                    className="w-2.5 h-2.5 rounded-full border border-white/50 inline-block"
+                    className="w-3 h-3 rounded-full border border-white inline-block"
                     style={{ backgroundColor: color }}
                   />
                 </>
               )}
               {tool === 'eraser' && (
                 <>
-                  <Eraser className="w-3 h-3 text-sky-400" />
+                  <Eraser className="w-3.5 h-3.5 text-sky-300" />
                   <span>Borracha</span>
                 </>
               )}
               {tool === 'shape' && (
                 <>
-                  <Maximize2 className="w-3 h-3 text-emerald-400" />
+                  <Maximize2 className="w-3.5 h-3.5 text-emerald-300" />
                   <span>
                     Forma ({SHAPE_OPTIONS.find((s) => s.id === selectedShapeType)?.label}) — arraste na folha
                   </span>
@@ -1381,9 +1381,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
           )}
 
           {canInteract && activeShapeStroke && activeShapeStroke.shape && (
-            <div className="absolute bottom-2 left-2.5 pointer-events-none flex items-center gap-1.5 bg-slate-950/85 text-amber-200 px-2.5 py-1 rounded-lg border border-amber-500/40 text-[11px]">
-              <Move className="w-3 h-3 text-amber-400 shrink-0" />
-              <span>Arraste para mover ou puxe as alças para editar o tamanho</span>
+            <div className="absolute bottom-2.5 left-3 pointer-events-none flex items-center gap-1.5 bg-amber-400 text-indigo-950 px-3 py-1 rounded-xl border border-amber-600 text-[11px] font-bold shadow-sm">
+              <Move className="w-3.5 h-3.5 text-indigo-950 shrink-0" />
+              <span>Arraste para mover ou puxe os cantos para redimensionar</span>
             </div>
           )}
         </div>
