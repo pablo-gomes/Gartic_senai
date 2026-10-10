@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Volume2, VolumeX, Music, X, Columns2, CheckCircle2, Palette } from 'lucide-react';
 import { GameClientView } from './components/GameClientView';
 import { CatalogModerationModal } from './components/CatalogModerationModal';
-import { soundManager } from './utils/sound';
+import { soundManager, MUSIC_STYLES, MusicStyleId } from './utils/sound';
 import { RoomPublicState } from './shared/types';
 
 export default function App() {
@@ -31,31 +31,44 @@ export default function App() {
     players: [],
   });
 
-  // Audio settings state
+  // Audio settings state synced with soundManager
   const [sfxEnabled, setSfxEnabled] = useState<boolean>(soundManager.sfxEnabled);
   const [musicEnabled, setMusicEnabled] = useState<boolean>(soundManager.musicEnabled);
+  const [musicStyle, setMusicStyle] = useState<MusicStyleId>(soundManager.musicStyle);
   const [volume, setVolume] = useState<number>(soundManager.volume);
 
   useEffect(() => {
-    soundManager.volume = volume;
-  }, [volume]);
+    return soundManager.subscribe(() => {
+      setSfxEnabled(soundManager.sfxEnabled);
+      setMusicEnabled(soundManager.musicEnabled);
+      setMusicStyle(soundManager.musicStyle);
+      setVolume(soundManager.volume);
+    });
+  }, []);
 
   const handleToggleSfx = () => {
-    const next = !sfxEnabled;
-    setSfxEnabled(next);
-    soundManager.setSfxEnabled(next);
+    soundManager.setSfxEnabled(!sfxEnabled);
   };
 
   const handleToggleMusic = () => {
-    const next = !musicEnabled;
-    setMusicEnabled(next);
-    soundManager.setMusicEnabled(next);
+    soundManager.toggleMusic();
+  };
+
+  const handleSelectMusicStyle = (style: MusicStyleId) => {
+    soundManager.setMusicStyle(style);
+    if (!soundManager.musicEnabled) {
+      soundManager.setMusicEnabled(true);
+    }
+  };
+
+  const handleVolumeChange = (val: number) => {
+    soundManager.setVolume(val);
   };
 
   return (
     <div className="min-h-screen flex flex-col text-indigo-950">
       {/* Party Game Top Bar */}
-      <header className="flex items-center justify-between gap-6 px-5 sm:px-8 py-3 bg-indigo-950/85 backdrop-blur-md border-b-2 border-indigo-400/30 sticky top-0 z-30 shadow-md">
+      <header className="flex items-center justify-between gap-4 px-4 sm:px-8 py-3 bg-indigo-950/85 backdrop-blur-md border-b-2 border-indigo-400/30 sticky top-0 z-30 shadow-md">
         {/* Zone 1: Expressive Game Logo & Wordmark */}
         <a
           href="/"
@@ -102,16 +115,49 @@ export default function App() {
             onClick={() => setShowAudioModal(true)}
             className="hover:text-amber-300 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            Áudio &amp; Som
+            Opções de Áudio
           </button>
         </nav>
 
-        {/* Zone 3: Primary Action */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        {/* Zone 3: Quick Music Toggle + Split Screen Action */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleToggleMusic}
+            aria-pressed={musicEnabled}
+            title={
+              musicEnabled
+                ? 'Clique para desativar a música de fundo'
+                : 'Clique para ativar a música de fundo'
+            }
+            className={`px-3 py-2 text-xs font-extrabold rounded-xl border-2 transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
+              musicEnabled
+                ? 'bg-emerald-500 hover:bg-emerald-400 text-white border-emerald-300 shadow-sm'
+                : 'bg-indigo-900/90 hover:bg-indigo-800 text-indigo-200 border-indigo-400/40'
+            }`}
+          >
+            <Music className={`w-3.5 h-3.5 ${musicEnabled ? 'animate-bounce' : 'opacity-60'}`} />
+            <span>{musicEnabled ? 'Música: ON' : 'Música: OFF'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowAudioModal(true)}
+            title="Configurações de Som e Estilo Musical"
+            className="p-2 rounded-xl bg-indigo-900/90 hover:bg-indigo-800 text-indigo-100 border-2 border-indigo-400/40 transition-colors cursor-pointer"
+            aria-label="Configurações de Áudio"
+          >
+            {sfxEnabled || musicEnabled ? (
+              <Volume2 className="w-4 h-4 text-amber-300" />
+            ) : (
+              <VolumeX className="w-4 h-4 text-indigo-400" />
+            )}
+          </button>
+
           <button
             type="button"
             onClick={() => setSplitScreenMode((prev) => !prev)}
-            className={`px-4 py-2 text-xs font-extrabold rounded-xl transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
               splitScreenMode
                 ? 'game-btn-emerald'
                 : 'game-btn-amber'
@@ -119,7 +165,7 @@ export default function App() {
             title="Abre um 2º cliente multiplayer via WebSocket ao lado para testar Desenhista e Adivinhador na mesma tela"
           >
             <Columns2 className="w-3.5 h-3.5" />
-            <span>
+            <span className="hidden sm:inline">
               {splitScreenMode ? 'Fechar Tela Dupla' : 'Tela Dupla (2 Jogadores)'}
             </span>
           </button>
@@ -264,7 +310,7 @@ export default function App() {
           <div className="game-panel rounded-3xl max-w-md w-full p-6 flex flex-col gap-5">
             <div className="flex items-center justify-between border-b-2 border-indigo-100 pb-3">
               <h2 id="audio-title" className="text-xl font-extrabold text-indigo-950 font-display">
-                Áudio &amp; Efeitos Sonoros
+                Música &amp; Efeitos Sonoros
               </h2>
               <button
                 type="button"
@@ -277,6 +323,69 @@ export default function App() {
             </div>
 
             <div className="flex flex-col gap-3.5">
+              {/* Background Music Toggle */}
+              <div className="flex items-center justify-between bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5">
+                <div className="flex items-center gap-3">
+                  <Music className={`w-5 h-5 ${musicEnabled ? 'text-emerald-600 animate-bounce' : 'text-slate-400'}`} />
+                  <div>
+                    <div className="text-sm font-extrabold text-indigo-950">Música de Fundo</div>
+                    <div className="text-xs text-indigo-800/75">
+                      Trilha sonora animada durante o jogo
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleMusic}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
+                    musicEnabled
+                      ? 'bg-emerald-500 text-white shadow-2xs'
+                      : 'bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  {musicEnabled ? 'Ativada' : 'Desativada'}
+                </button>
+              </div>
+
+              {/* Background Music Style Selector */}
+              <div className="bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5 flex flex-col gap-2">
+                <div className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide">
+                  Estilo da Música de Fundo
+                </div>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {MUSIC_STYLES.map((st) => {
+                    const active = musicStyle === st.id;
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => handleSelectMusicStyle(st.id)}
+                        className={`flex items-center justify-between px-3 py-2 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                          active
+                            ? 'bg-amber-100 border-amber-400 text-indigo-950'
+                            : 'bg-white/80 border-indigo-100 hover:border-indigo-300 text-indigo-900'
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-extrabold">{st.name}</div>
+                          <div className="text-[11px] text-indigo-700/80">{st.description}</div>
+                        </div>
+                        <span
+                          className={`text-[10px] font-extrabold px-2 py-0.5 rounded-lg ${
+                            active
+                              ? 'bg-amber-400 text-indigo-950'
+                              : 'bg-indigo-100 text-indigo-700'
+                          }`}
+                        >
+                          {active ? 'Tocando' : 'Ouvir'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* SFX Toggle */}
               <div className="flex items-center justify-between bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5">
                 <div className="flex items-center gap-3">
                   {sfxEnabled ? (
@@ -300,33 +409,11 @@ export default function App() {
                       : 'bg-slate-200 text-slate-600'
                   }`}
                 >
-                  {sfxEnabled ? 'Ligado' : 'Mudo'}
+                  {sfxEnabled ? 'Ativados' : 'Desativados'}
                 </button>
               </div>
 
-              <div className="flex items-center justify-between bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5">
-                <div className="flex items-center gap-3">
-                  <Music className={`w-5 h-5 ${musicEnabled ? 'text-indigo-600' : 'text-slate-400'}`} />
-                  <div>
-                    <div className="text-sm font-extrabold text-indigo-950">Trilha Ambiente</div>
-                    <div className="text-xs text-indigo-800/75">
-                      Notas musicais suaves durante a partida
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleToggleMusic}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
-                    musicEnabled
-                      ? 'bg-emerald-500 text-white shadow-2xs'
-                      : 'bg-slate-200 text-slate-600'
-                  }`}
-                >
-                  {musicEnabled ? 'Ligada' : 'Muda'}
-                </button>
-              </div>
-
+              {/* Volume Slider */}
               <div className="bg-indigo-50/80 border-2 border-indigo-100 rounded-2xl p-3.5 flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs font-extrabold text-indigo-950">
                   <span>Volume Geral</span>
@@ -338,7 +425,7 @@ export default function App() {
                   max={1}
                   step={0.05}
                   value={volume}
-                  onChange={(e) => setVolume(Number(e.target.value))}
+                  onChange={(e) => handleVolumeChange(Number(e.target.value))}
                   className="w-full accent-indigo-600 cursor-pointer"
                 />
               </div>
@@ -346,7 +433,7 @@ export default function App() {
 
             <div className="text-xs text-indigo-900/75 flex items-center gap-2 font-medium">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Todos os avisos visuais funcionam com ou sem som.</span>
+              <span>Você pode ligar ou desligar a música a qualquer momento no topo da tela.</span>
             </div>
           </div>
         </div>
