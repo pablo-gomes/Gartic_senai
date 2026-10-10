@@ -97,34 +97,30 @@ export default function App() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col text-[#202435] bg-[#F7F8FC] senaiphone-doodle-pattern overflow-x-hidden">
-      {/* Custom Illustrated Game Background Layer */}
-      <div
-        className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none"
-        aria-hidden="true"
-      >
-        <img
-          src="/src/assets/images/senaiphone_game_bg_1791673334959.jpg"
-          alt=""
-          referrerPolicy="no-referrer"
-          className="w-full h-full object-cover opacity-40"
-          style={{
-            maskImage:
-              'radial-gradient(ellipse 68% 62% at 50% 52%, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.45) 65%, rgba(0,0,0,0.95) 100%)',
-            WebkitMaskImage:
-              'radial-gradient(ellipse 68% 62% at 50% 52%, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.45) 65%, rgba(0,0,0,0.95) 100%)',
-          }}
-        />
-      </div>
+    <div className="relative min-h-screen flex flex-col text-[#F0F2FF] senaiphone-doodle-pattern overflow-x-hidden">
+      {/* ── Refined Dark Game Background ── */}
+      <div className="game-bg" aria-hidden="true" />
+      <div className="game-bg-glow" aria-hidden="true" />
 
-      {/* Light Mode Navigation Bar */}
-      <header className="flex items-center justify-between gap-4 px-4 sm:px-8 h-16 bg-white/95 backdrop-blur-md border-b border-[#E5E8F0] sticky top-0 z-30 shadow-[0_1px_3px_rgba(32,36,53,0.03)]">
+      {/* ── Ambient counter-drift glow layer ── */}
+      <div className="game-bg-ray" aria-hidden="true" />
+
+      {/* ── Film grain noise texture ── */}
+      <div className="game-bg-noise" aria-hidden="true" />
+
+      {/* ── Floating neon particles ── */}
+      {Array.from({ length: 10 }).map((_, i) => (
+        <div key={i} className="game-particle" aria-hidden="true" />
+      ))}
+
+      {/* ── Dark Glass Navigation Bar ── */}
+      <header className="flex items-center justify-between gap-4 px-4 sm:px-8 h-16 bg-[#0D0D1A]/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-30 shadow-[0_1px_24px_rgba(0,0,0,0.4)]">
         {/* Zone 1: Brand Logo & Wordmark */}
         <a
           href="/"
-          className="flex items-center gap-2.5 text-xl font-bold tracking-tight text-[#202435] whitespace-nowrap shrink-0 font-display group focus-visible:outline-2 focus-visible:outline-[#FF9F1C] rounded-xl"
+          className="flex items-center gap-2.5 text-xl font-bold tracking-tight text-[#F0F2FF] whitespace-nowrap shrink-0 font-display group focus-visible:outline-2 focus-visible:outline-[#FF9F1C] rounded-xl"
         >
-          <span className="w-9 h-9 rounded-xl bg-[#FFF6E5] border border-[#FF9F1C]/40 flex items-center justify-center text-[#FF9F1C] shadow-xs group-hover:bg-[#FF9F1C] group-hover:text-white transition-colors">
+          <span className="w-9 h-9 rounded-xl bg-[#FF9F1C]/15 border border-[#FF9F1C]/40 flex items-center justify-center text-[#FF9F1C] shadow-[0_0_12px_rgba(255,159,28,0.35)] group-hover:bg-[#FF9F1C] group-hover:text-white group-hover:shadow-[0_0_20px_rgba(255,159,28,0.6)] transition-all">
             <Palette className="w-5 h-5 stroke-[2.2]" />
           </span>
           <span className="flex items-center gap-1">
@@ -134,14 +130,14 @@ export default function App() {
         </a>
 
         {/* Zone 2: Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-1 text-sm font-semibold text-[#687086]">
+        <nav className="hidden lg:flex items-center gap-1 text-sm font-semibold text-[#9BA3C7]">
           <button
             type="button"
             onClick={() => {
               setShowRulesModal(false);
               setShowAudioModal(false);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#202435] hover:bg-[#F5F6FA] focus-visible:outline-2 focus-visible:outline-[#FF9F1C] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#F0F2FF] hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#FF9F1C] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Gamepad2 className="w-4 h-4 text-[#FF9F1C]" />
             <span>Sala de Jogo</span>
@@ -149,9 +145,9 @@ export default function App() {
           <button
             type="button"
             onClick={() => setShowRulesModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:text-[#202435] hover:bg-[#F5F6FA] focus-visible:outline-2 focus-visible:outline-[#FF9F1C] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:text-[#F0F2FF] hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#FF9F1C] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <BookOpen className="w-4 h-4 text-[#687086]" />
+            <BookOpen className="w-4 h-4 text-[#9BA3C7]" />
             <span>Como Jogar</span>
           </button>
           <button
@@ -159,17 +155,17 @@ export default function App() {
             onClick={() =>
               setModerationModalCtx((prev) => ({ ...prev, isOpen: true }))
             }
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:text-[#202435] hover:bg-[#F5F6FA] focus-visible:outline-2 focus-visible:outline-[#FF9F1C] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:text-[#F0F2FF] hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#FF9F1C] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <Library className="w-4 h-4 text-[#687086]" />
+            <Library className="w-4 h-4 text-[#9BA3C7]" />
             <span>Catálogo de Palavras</span>
           </button>
           <button
             type="button"
             onClick={() => setShowAudioModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:text-[#202435] hover:bg-[#F5F6FA] focus-visible:outline-2 focus-visible:outline-[#FF9F1C] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:text-[#F0F2FF] hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#FF9F1C] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            <Sliders className="w-4 h-4 text-[#687086]" />
+            <Sliders className="w-4 h-4 text-[#9BA3C7]" />
             <span>Opções de Áudio</span>
           </button>
         </nav>
