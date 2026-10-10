@@ -788,7 +788,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
         {errorMsg && (
           <div
             role="alert"
-            className="mb-5 flex items-center justify-between gap-3 bg-rose-100 border-2 border-rose-400 text-rose-950 px-4 py-3 rounded-2xl text-sm font-bold shadow-md"
+            className="mb-5 flex items-center justify-between gap-3 bg-rose-100 border-2 border-rose-500 text-rose-950 px-4 py-3 rounded-2xl text-sm font-bold shadow-md"
           >
             <div className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
@@ -797,7 +797,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
             <button
               type="button"
               onClick={() => setErrorMsg('')}
-              className="text-xs font-extrabold text-rose-700 hover:text-rose-950 cursor-pointer underline"
+              className="text-xs font-bold text-rose-800 hover:text-rose-950 cursor-pointer underline"
             >
               Fechar
             </button>
@@ -805,12 +805,13 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Left Column: Character & Nickname + Create Room */}
-          <div className="lg:col-span-7 game-panel rounded-3xl p-6 flex flex-col justify-between gap-5">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 pb-4 border-b-2 border-indigo-100">
+          {/* Left Column: Character Preview, Nickname & 12-Avatar Grid */}
+          <div className="lg:col-span-7 party-card rounded-3xl p-6 flex flex-col justify-between gap-5">
+            {/* Avatar Preview + Nickname Input Side-by-Side */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-indigo-50/70 border-2 border-indigo-100 rounded-2xl p-4">
               <div className="flex items-center gap-3 shrink-0">
-                <div className="p-1.5 rounded-3xl bg-indigo-50 border-2 border-amber-400">
-                  <AvatarSvg avatarId={avatarId} size={72} />
+                <div className="p-1.5 rounded-2xl bg-white border-2 border-indigo-950 shadow-[0_3px_0_#1e1b4b]">
+                  <AvatarSvg avatarId={avatarId} size={64} mood="excited" />
                 </div>
                 <button
                   type="button"
@@ -822,19 +823,19 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                     )
                   }
                   title="Sortear outro personagem"
-                  className="py-2 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-indigo-950 border border-amber-500 font-extrabold text-xs flex items-center gap-1 cursor-pointer"
+                  className="py-2 px-3 rounded-xl bg-amber-300 hover:bg-amber-200 text-indigo-950 border-2 border-indigo-950 shadow-[0_2px_0_#1e1b4b] font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Sortear</span>
                 </button>
               </div>
 
-              <div className="flex-1 flex flex-col gap-1.5">
+              <div className="flex-1">
                 <label
                   htmlFor={`nick-${clientSlotId}`}
-                  className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide"
+                  className="block text-xs font-bold text-indigo-950 mb-1"
                 >
-                  Seu Apelido
+                  Seu Apelido ({selectedAvatarMeta.label})
                 </label>
                 <input
                   id={`nick-${clientSlotId}`}
@@ -843,49 +844,54 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   onChange={(e) => setNickname(e.target.value)}
                   maxLength={18}
                   placeholder="Digite seu apelido..."
-                  className="w-full bg-indigo-50/70 border-2 border-indigo-200 focus:border-indigo-600 rounded-2xl px-4 py-2.5 text-base font-extrabold text-indigo-950 placeholder:text-indigo-300 focus:outline-none transition-colors"
+                  className="w-full bg-white border-2 border-indigo-300 focus:border-indigo-600 rounded-xl px-3.5 py-2 text-base font-bold text-indigo-950 placeholder:text-indigo-300 focus:outline-none transition-colors"
                 />
               </div>
             </div>
 
-            {/* 12 Avatars Grid */}
-            <div
-              className="grid grid-cols-4 sm:grid-cols-6 gap-2"
-              role="radiogroup"
-              aria-label="Avatares disponíveis"
-            >
-              {AVATAR_LIST.map((av) => {
-                const selected = avatarId === av.id;
-                return (
-                  <button
-                    key={av.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    aria-label={av.label}
-                    title={av.label}
-                    onClick={() => setAvatarId(av.id)}
-                    className={`group p-2 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                      selected
-                        ? 'bg-amber-100 border-amber-500 scale-105 shadow-sm'
-                        : 'bg-indigo-50/40 border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50'
-                    }`}
-                  >
-                    <AvatarSvg avatarId={av.id} size={44} />
-                    <span className="text-[10px] font-extrabold text-indigo-950 truncate w-full text-center">
-                      {av.label.split(' ')[0]}
-                    </span>
-                  </button>
-                );
-              })}
+            {/* 12 Original Characters Grid */}
+            <div>
+              <div
+                className="grid grid-cols-4 sm:grid-cols-6 gap-2"
+                role="radiogroup"
+                aria-label="12 personagens originais"
+              >
+                {AVATAR_LIST.map((av) => {
+                  const selected = avatarId === av.id;
+                  return (
+                    <button
+                      key={av.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={av.label}
+                      onClick={() => setAvatarId(av.id)}
+                      className={`group p-2 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                        selected
+                          ? 'bg-amber-200 border-indigo-950 shadow-[0_3px_0_#1e1b4b] -translate-y-0.5'
+                          : 'bg-indigo-50/60 border-indigo-100 hover:border-indigo-300 hover:bg-white'
+                      }`}
+                    >
+                      <AvatarSvg
+                        avatarId={av.id}
+                        size={42}
+                        mood={selected ? 'excited' : 'happy'}
+                      />
+                      <span className="text-[11px] font-bold text-indigo-950 truncate w-full text-center">
+                        {av.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Room Name & Custom Time Before Creating Room */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-3 border-t-2 border-indigo-100">
-              <div className="sm:col-span-7 flex flex-col gap-1">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 bg-indigo-50/70 border-2 border-indigo-100 rounded-2xl p-3.5">
+              <div className="sm:col-span-7">
                 <label
                   htmlFor={`room-name-${clientSlotId}`}
-                  className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide"
+                  className="block text-xs font-bold text-indigo-950 mb-1"
                 >
                   Nome da Sala (Personalizado)
                 </label>
@@ -896,16 +902,16 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   onChange={(e) => setCustomCreateRoomName(e.target.value)}
                   maxLength={45}
                   placeholder={`Ex: Sala de ${nickname.trim() || 'Desenho'}`}
-                  className="w-full bg-indigo-50/70 border-2 border-indigo-200 focus:border-indigo-600 rounded-xl px-3.5 py-2 text-sm font-bold text-indigo-950 placeholder:text-indigo-400/70 focus:outline-none transition-colors"
+                  className="w-full bg-white border-2 border-indigo-200 focus:border-indigo-600 rounded-xl px-3 py-2 text-sm font-bold text-indigo-950 placeholder:text-indigo-300 focus:outline-none"
                 />
               </div>
 
-              <div className="sm:col-span-5 flex flex-col gap-1">
+              <div className="sm:col-span-5">
                 <label
                   htmlFor={`room-time-${clientSlotId}`}
-                  className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide"
+                  className="block text-xs font-bold text-indigo-950 mb-1"
                 >
-                  Tempo (Segundos)
+                  Tempo da Rodada (segundos)
                 </label>
                 <div className="flex items-center gap-1.5">
                   <input
@@ -916,9 +922,9 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                     value={customCreateDuration}
                     onChange={(e) => setCustomCreateDuration(e.target.value)}
                     placeholder="60"
-                    className="w-full bg-indigo-50/70 border-2 border-indigo-200 focus:border-indigo-600 rounded-xl px-3 py-2 text-sm font-mono font-extrabold text-indigo-950 focus:outline-none transition-colors"
+                    className="w-full bg-white border-2 border-indigo-200 focus:border-indigo-600 rounded-xl px-3 py-2 text-sm font-mono font-bold text-indigo-950 focus:outline-none"
                   />
-                  <span className="text-xs font-extrabold text-indigo-700 shrink-0">seg</span>
+                  <span className="text-xs font-bold text-indigo-700 shrink-0">seg</span>
                 </div>
               </div>
             </div>
@@ -927,19 +933,24 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               type="button"
               onClick={handleCreateRoom}
               disabled={!wsConnected}
-              className="game-btn-amber w-full py-3.5 px-6 rounded-2xl disabled:opacity-50 font-extrabold text-base cursor-pointer flex items-center justify-center gap-2"
+              className="party-btn-yellow w-full py-3.5 px-6 rounded-2xl disabled:opacity-50 font-bold text-base cursor-pointer flex items-center justify-center gap-2"
             >
-              <Play className="w-5 h-5 fill-current" />
+              <Play className="w-5 h-5 fill-indigo-950" />
               <span>CRIAR SALA</span>
             </button>
           </div>
 
           {/* Right Column: Join Room with Code & Open Rooms */}
-          <div className="lg:col-span-5 game-panel rounded-3xl p-6 flex flex-col justify-between gap-5">
+          <div className="lg:col-span-5 party-card rounded-3xl p-6 flex flex-col justify-between gap-5">
             <div className="flex flex-col gap-4">
-              <h2 className="text-xl font-extrabold text-indigo-950 font-display">
-                Entrar com Código
-              </h2>
+              <div>
+                <h2 className="text-xl font-bold text-indigo-950 font-display">
+                  Entrar em uma Sala
+                </h2>
+                <p className="text-xs text-indigo-600">
+                  Digite o código de convite ou escolha uma sala aberta:
+                </p>
+              </div>
 
               <form onSubmit={(e) => handleJoinRoom(e)} className="flex items-center gap-2">
                 <input
@@ -947,51 +958,56 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   type="text"
                   value={joinCodeInput}
                   onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                  placeholder="CÓDIGO"
+                  placeholder="CÓDIGO (EX: A7K9P2)"
                   maxLength={8}
-                  className="flex-1 bg-indigo-50/80 border-2 border-indigo-200 focus:border-emerald-500 rounded-2xl px-4 py-3 text-base font-mono font-extrabold uppercase tracking-widest text-indigo-950 placeholder:text-indigo-300 focus:outline-none"
+                  className="flex-1 bg-indigo-50/70 border-2 border-indigo-300 focus:border-emerald-600 focus:bg-white rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold uppercase tracking-widest text-indigo-950 placeholder:text-indigo-300 focus:outline-none transition-colors"
                 />
                 <button
                   type="submit"
                   disabled={!wsConnected}
-                  className="game-btn-emerald px-5 py-3 rounded-2xl font-extrabold text-sm whitespace-nowrap shrink-0 cursor-pointer"
+                  className="party-btn-emerald px-5 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   ENTRAR
                 </button>
               </form>
 
-              <div className="pt-3 border-t-2 border-indigo-100">
-                <div className="flex items-center justify-between text-xs font-extrabold text-indigo-950 uppercase tracking-wide mb-2.5">
+              <div className="pt-3 border-t-2 border-indigo-100 flex flex-col gap-2.5">
+                <div className="flex items-center justify-between text-xs font-bold text-indigo-900">
                   <span>Salas Abertas</span>
-                  <span className="font-mono text-indigo-600 tabular-nums">
-                    {publicRooms.length}
-                  </span>
+                  <span className="font-mono text-indigo-600">{publicRooms.length}</span>
                 </div>
+
                 {publicRooms.length === 0 ? (
-                  <div className="bg-indigo-50/60 border-2 border-dashed border-indigo-200 rounded-2xl p-4 text-center text-xs font-semibold text-indigo-700/80">
-                    Nenhuma sala aberta agora. Crie uma sala ao lado para começar!
+                  <div className="bg-indigo-50/60 border-2 border-dashed border-indigo-200 rounded-2xl p-6 text-center flex flex-col items-center gap-2">
+                    <AvatarSvg avatarId={(avatarId + 3) % AVATAR_LIST.length} size={44} mood="curious" />
+                    <p className="text-xs font-bold text-indigo-900">
+                      Nenhuma sala aberta agora
+                    </p>
+                    <p className="text-[11px] text-indigo-600">
+                      Clique em <strong>CRIAR SALA</strong> ao lado para começar!
+                    </p>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
+                  <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
                     {publicRooms.map((r) => (
                       <div
                         key={r.joinCode}
-                        className="flex items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-200 rounded-2xl px-3.5 py-2.5"
+                        className="flex items-center justify-between gap-3 bg-indigo-50/80 hover:bg-indigo-100/80 border-2 border-indigo-200 rounded-2xl px-3.5 py-2.5 transition-colors"
                       >
                         <div className="min-w-0">
-                          <div className="text-sm font-extrabold text-indigo-950 truncate">
+                          <div className="text-sm font-bold text-indigo-950 truncate">
                             {r.roomName}
                           </div>
-                          <div className="text-xs font-bold text-indigo-600 font-mono tabular-nums">
-                            #{r.joinCode} · {r.playerCount}/{r.maxPlayers}
+                          <div className="text-xs text-indigo-700 font-mono">
+                            #{r.joinCode} · {r.playerCount}/{r.maxPlayers} jogadores
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={(e) => handleJoinRoom(e, r.joinCode)}
-                          className="game-btn-amber px-3.5 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer"
+                          className="party-btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer shrink-0"
                         >
-                          Jogar
+                          Entrar
                         </button>
                       </div>
                     ))}
@@ -1006,24 +1022,24 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
   }
 
   // ============================================================================
-  // CONNECTED TO A ROOM (CLEAN & SPACIOUS PARTY ARENA)
+  // CONNECTED TO A ROOM (CLEAN, CANVAS-FIRST SOCIAL DRAWING ARENA)
   // ============================================================================
   return (
     <div className="w-full max-w-[1540px] mx-auto px-3 sm:px-5 py-2.5 flex flex-col gap-2.5">
       {reconnecting && (
         <div
           role="status"
-          className="flex items-center gap-2 bg-amber-100 border-2 border-amber-400 text-amber-950 px-4 py-2 rounded-2xl text-xs font-extrabold"
+          className="flex items-center gap-2 bg-amber-200 border-2 border-indigo-950 text-indigo-950 px-4 py-2 rounded-xl text-xs font-bold"
         >
-          <WifiOff className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>Reconectando...</span>
+          <WifiOff className="w-4 h-4 text-amber-800 shrink-0" />
+          <span>Reconectando à partida em tempo real...</span>
         </div>
       )}
 
       {errorMsg && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 bg-rose-100 border-2 border-rose-400 text-rose-950 px-4 py-2 rounded-2xl text-xs font-extrabold"
+          className="flex items-center justify-between gap-3 bg-rose-100 border-2 border-rose-600 text-rose-950 px-4 py-2 rounded-xl text-xs font-bold"
         >
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -1032,33 +1048,33 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           <button
             type="button"
             onClick={() => setErrorMsg('')}
-            className="text-xs font-extrabold text-rose-700 hover:text-rose-950 cursor-pointer underline"
+            className="text-xs font-bold text-rose-800 hover:text-rose-950 cursor-pointer underline"
           >
             Fechar
           </button>
         </div>
       )}
 
-      {/* UNIFIED SINGLE TOP BAR (No double stacked headers!) */}
-      <div className="game-panel rounded-2xl px-3.5 py-2 flex flex-wrap items-center justify-between gap-2.5">
+      {/* UNIFIED SINGLE COMPACT TOP BAR (Room + Word/Letters + Timer + Actions) */}
+      <div className="bg-white border-2 border-indigo-950 shadow-[0_4px_0_#1e1b4b] rounded-2xl px-3.5 py-2 flex flex-wrap items-center justify-between gap-2">
         {/* Left: Room & Round Info */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <AvatarSvg avatarId={me?.avatarId ?? avatarId} size={36} />
-          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-extrabold text-indigo-950">
-            <span className="truncate max-w-[180px] sm:max-w-[260px]" title={roomState.settings.roomName}>
+          <AvatarSvg avatarId={me?.avatarId ?? avatarId} size={34} />
+          <div className="flex flex-wrap items-center gap-1.5 text-xs sm:text-sm font-bold text-indigo-950">
+            <span className="truncate max-w-[160px] sm:max-w-[240px]" title={roomState.settings.roomName}>
               {roomState.settings.roomName}
             </span>
-            <span className="font-mono text-indigo-600">#{roomState.joinCode}</span>
+            <span className="font-mono text-indigo-600">({roomState.joinCode})</span>
             {round && roomState.status !== 'LOBBY' && (
               <>
                 <span aria-hidden="true" className="text-indigo-300">·</span>
-                <span className="font-mono tabular-nums">
-                  {round.roundNumber}/{round.totalRounds}
+                <span className="font-mono text-indigo-700">
+                  Rodada {round.roundNumber}/{round.totalRounds}
                 </span>
                 {round.themeName && (
                   <>
                     <span aria-hidden="true" className="text-indigo-300">·</span>
-                    <span className="text-indigo-700">{round.themeName}</span>
+                    <span className="text-indigo-600">{round.themeName}</span>
                   </>
                 )}
               </>
@@ -1066,7 +1082,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           </div>
         </div>
 
-        {/* Center: Word / Letter Slots (Drawer reveals letters; Guessers only observe) */}
+        {/* Center: Word / Letter Slots (ONLY DRAWER CAN REVEAL LETTERS; GUESSERS OBSERVE) */}
         {round && (roomState.status === 'DRAWING' || roomState.status === 'PAUSED') && (
           <div className="flex flex-wrap items-center justify-center gap-2">
             {isDrawer ? (
@@ -1083,7 +1099,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                       return (
                         <span
                           key={idx}
-                          className="w-3 h-7 flex items-center justify-center font-mono font-extrabold text-indigo-400"
+                          className="w-3 h-7 flex items-center justify-center font-mono font-bold text-indigo-500"
                         >
                           -
                         </span>
@@ -1102,17 +1118,17 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                             ? `Letra "${ch.toUpperCase()}" já visível para a sala`
                             : `Clique para revelar a letra "${ch.toUpperCase()}" para a sala`
                         }
-                        className={`w-7 h-8 rounded-lg font-mono text-sm font-extrabold flex items-center justify-center border-2 transition-all ${
+                        className={`w-7 h-8 rounded-lg font-mono text-sm font-bold flex items-center justify-center border-2 transition-all ${
                           isRevealedToRoom
-                            ? 'bg-amber-300 border-amber-500 text-indigo-950 shadow-2xs'
-                            : 'bg-indigo-50 border-indigo-300 hover:bg-amber-200 hover:border-amber-500 text-indigo-950 cursor-pointer'
+                            ? 'bg-amber-300 border-indigo-950 text-indigo-950 shadow-[0_1px_0_#1e1b4b]'
+                            : 'bg-indigo-50 border-indigo-300 hover:bg-amber-100 hover:border-amber-500 text-indigo-950 cursor-pointer'
                         }`}
                       >
                         {ch.toUpperCase()}
                       </button>
                     );
                   })}
-                  <span className="ml-1 text-xs font-mono font-extrabold text-indigo-600">
+                  <span className="ml-1 text-xs font-mono font-bold text-indigo-500">
                     ({round.wordLetterCount})
                   </span>
                 </div>
@@ -1121,7 +1137,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   type="button"
                   onClick={() => handleRevealLetterHint()}
                   disabled={roomState.status !== 'DRAWING' || round.unrevealedLettersCount === 0}
-                  className="game-btn-amber flex items-center gap-1 px-2.5 py-1 rounded-xl disabled:opacity-40 font-extrabold text-xs cursor-pointer"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-300 hover:bg-amber-200 text-indigo-950 border border-indigo-950 disabled:opacity-40 font-bold text-xs cursor-pointer"
                   title="Revelar uma letra para os jogadores"
                 >
                   <Lightbulb className="w-3.5 h-3.5" />
@@ -1132,7 +1148,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   <button
                     type="button"
                     onClick={() => sendWs('round:finish')}
-                    className="px-2.5 py-1 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 text-xs font-extrabold cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-400 text-xs font-bold cursor-pointer"
                   >
                     Concluir
                   </button>
@@ -1153,7 +1169,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                       return (
                         <span
                           key={idx}
-                          className="w-3 h-7 flex items-center justify-center font-mono font-extrabold text-indigo-400"
+                          className="w-3 h-7 flex items-center justify-center font-mono font-bold text-indigo-500"
                         >
                           -
                         </span>
@@ -1168,9 +1184,9 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                             ? `Letra revelada pelo desenhista: ${ch}`
                             : 'Letra oculta (apenas o desenhista pode revelar)'
                         }
-                        className={`w-7 h-8 rounded-lg font-mono text-sm font-extrabold flex items-center justify-center border-2 select-none ${
+                        className={`w-7 h-8 rounded-lg font-mono text-sm font-bold flex items-center justify-center border-2 select-none ${
                           isRevealed
-                            ? 'bg-amber-300 border-amber-500 text-indigo-950'
+                            ? 'bg-amber-300 border-indigo-950 text-indigo-950 shadow-[0_1px_0_#1e1b4b]'
                             : 'bg-indigo-50 border-indigo-200 text-indigo-400'
                         }`}
                       >
@@ -1178,7 +1194,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                       </span>
                     );
                   })}
-                  <span className="ml-1 text-xs font-mono font-extrabold text-indigo-600">
+                  <span className="ml-1 text-xs font-mono font-bold text-indigo-500">
                     ({round.wordLetterCount} letras)
                   </span>
                 </div>
@@ -1195,15 +1211,15 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               roomState.status === 'WORD_REVEAL' ||
               roomState.status === 'PAUSED') && (
               <div
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border-2 font-mono text-xs sm:text-sm font-extrabold tabular-nums ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold tabular-nums ${
                   roomState.status === 'PAUSED'
                     ? 'bg-amber-100 border-amber-400 text-amber-900'
                     : remainingSeconds <= 10 && roomState.status === 'DRAWING'
                     ? 'bg-rose-500 border-rose-700 text-white animate-pulse'
-                    : 'bg-amber-300 border-amber-500 text-indigo-950'
+                    : 'bg-indigo-50 border-indigo-200 text-indigo-950'
                 }`}
               >
-                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <Clock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                 <span>{roomState.status === 'PAUSED' ? 'PAUSA' : `${remainingSeconds}s`}</span>
               </div>
             )}
@@ -1211,8 +1227,8 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           <button
             type="button"
             onClick={handleCopyInvite}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-200 text-xs font-extrabold cursor-pointer"
-            title="Copiar link de convite"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-200 text-xs font-bold cursor-pointer"
+            title="Copiar convite"
           >
             {copiedInvite ? (
               <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -1226,13 +1242,13 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
             <button
               type="button"
               onClick={() => sendWs('game:pause_toggle')}
-              className="p-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 cursor-pointer"
+              className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-200 cursor-pointer"
               title={roomState.status === 'PAUSED' ? 'Retomar' : 'Pausar'}
             >
               {roomState.status === 'PAUSED' ? (
-                <Play className="w-3.5 h-3.5 text-emerald-700" />
+                <Play className="w-3.5 h-3.5 text-emerald-600" />
               ) : (
-                <Pause className="w-3.5 h-3.5 text-amber-800" />
+                <Pause className="w-3.5 h-3.5 text-amber-600" />
               )}
             </button>
           )}
@@ -1240,7 +1256,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           <button
             type="button"
             onClick={handleLeaveRoom}
-            className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer"
+            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 cursor-pointer"
             title="Sair da sala"
           >
             <LogOut className="w-3.5 h-3.5" />
@@ -1249,27 +1265,25 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
       </div>
 
       {/* ========================================================================
-          PHASE 1: LOBBY (WAITING ROOM & PARTY SETUP)
+          PHASE 1: LOBBY (WAITING ROOM & MATCH SETUP)
          ======================================================================== */}
       {roomState.status === 'LOBBY' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left: Players Grid ("Galera na Sala") */}
-          <div className="lg:col-span-5 game-panel rounded-3xl p-6 flex flex-col gap-4">
+          {/* Left: Players Grid */}
+          <div className="lg:col-span-5 party-card rounded-3xl p-6 flex flex-col gap-4">
             <div className="flex items-center justify-between border-b-2 border-indigo-100 pb-3">
               <div>
-                <h2 className="text-xl font-extrabold text-indigo-950 font-display">
-                  Galera na Sala
+                <h2 className="text-lg font-bold text-indigo-950 font-display">
+                  Jogadores na Sala
                 </h2>
-                <p className="text-xs font-bold text-indigo-700/80">
-                  Código de convite:{' '}
-                  <span className="font-mono text-indigo-950 font-extrabold">
-                    #{roomState.joinCode}
-                  </span>
+                <p className="text-xs text-indigo-600">
+                  Convide seus amigos com o código{' '}
+                  <strong className="font-mono text-indigo-950">#{roomState.joinCode}</strong>
                 </p>
               </div>
-              <span className="font-mono text-xs font-extrabold text-indigo-700 tabular-nums">
+              <span className="font-mono text-xs font-bold text-indigo-700">
                 {roomState.players.filter((p) => p.connectionStatus === 'connected').length}/
-                {roomState.settings.maxPlayers} jogadores
+                {roomState.settings.maxPlayers} conectados
               </span>
             </div>
 
@@ -1279,28 +1293,30 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 return (
                   <div
                     key={p.id}
-                    className={`flex items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2.5 border-2 transition-colors ${
+                    className={`flex items-center justify-between gap-2.5 rounded-2xl px-3 py-2.5 border-2 transition-colors ${
                       p.id === playerId
-                        ? 'bg-amber-50 border-amber-300'
-                        : 'bg-indigo-50/70 border-indigo-100'
+                        ? 'bg-amber-50 border-amber-400'
+                        : 'bg-indigo-50/60 border-indigo-100'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <AvatarSvg avatarId={p.avatarId} size={44} />
+                      <AvatarSvg avatarId={p.avatarId} size={42} />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 text-sm font-extrabold text-indigo-950 truncate">
+                        <div className="flex items-center gap-1.5 text-sm font-bold text-indigo-950 truncate">
                           <span className="truncate">{p.nickname}</span>
                           {p.id === playerId && (
-                            <span className="text-xs font-bold text-indigo-600 shrink-0">(Você)</span>
+                            <span className="text-[11px] font-bold text-indigo-600 shrink-0">
+                              (Você)
+                            </span>
                           )}
                         </div>
-                        <div className="text-[11px] font-bold text-indigo-700/80 flex items-center gap-1 truncate">
+                        <div className="text-[11px] text-indigo-600 flex items-center gap-1 truncate">
                           <span className="truncate">{avMeta.label}</span>
                           <span aria-hidden="true">·</span>
                           {p.isHost ? (
-                            <span className="inline-flex items-center gap-1 text-amber-700 font-extrabold shrink-0">
+                            <span className="inline-flex items-center gap-1 text-amber-700 font-bold shrink-0">
                               <Crown className="w-3 h-3 fill-amber-400 text-amber-600" />
-                              Líder
+                              Anfitrião
                             </span>
                           ) : (
                             <span>Pronto</span>
@@ -1326,9 +1342,8 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
 
             <div className="pt-3 border-t-2 border-indigo-100 flex flex-col gap-3">
               {roomState.players.length < 2 && (
-                <div className="text-xs font-bold text-indigo-950 bg-amber-100/85 border-2 border-amber-300 rounded-2xl p-3.5 leading-relaxed">
-                  Você já pode clicar em <strong>COMEÇAR PARTIDA AGORA</strong> ou ativar o botão{' '}
-                  <strong>Tela Dupla (2 Jogadores)</strong> no topo para testar com 2 jogadores simultâneos!
+                <div className="text-xs text-amber-950 bg-amber-100/80 border-2 border-amber-300 rounded-2xl p-3 leading-relaxed font-medium">
+                  Convide amigos com o código <strong className="font-mono">#{roomState.joinCode}</strong>, clique em <strong>COMEÇAR PARTIDA</strong> ou ative o modo <strong>Tela Dupla</strong> no topo para testar 2 jogadores ao mesmo tempo!
                 </div>
               )}
 
@@ -1336,36 +1351,36 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 <button
                   type="button"
                   onClick={() => sendWs('game:start')}
-                  className="game-btn-amber w-full py-4 px-6 rounded-2xl font-extrabold text-base flex items-center justify-center gap-2.5 cursor-pointer"
+                  className="party-btn-yellow w-full py-3.5 px-6 rounded-2xl font-bold text-base flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Play className="w-5 h-5 fill-current" />
+                  <Play className="w-5 h-5 fill-indigo-950" />
                   <span>COMEÇAR PARTIDA AGORA!</span>
                 </button>
               ) : (
-                <div className="w-full py-4 px-4 rounded-2xl bg-indigo-50 border-2 border-indigo-200 text-center text-xs text-indigo-900 font-extrabold">
-                  Aguardando o líder da sala iniciar a partida...
+                <div className="w-full py-3.5 px-4 rounded-2xl bg-indigo-50 border-2 border-indigo-200 text-center text-xs text-indigo-700 font-bold">
+                  Aguardando o anfitrião iniciar a partida...
                 </div>
               )}
             </div>
           </div>
 
           {/* Right: Room Configuration */}
-          <div className="lg:col-span-7 game-panel rounded-3xl p-6 flex flex-col gap-5">
+          <div className="lg:col-span-7 party-card rounded-3xl p-6 flex flex-col gap-5">
             <div className="flex items-center justify-between border-b-2 border-indigo-100 pb-3">
               <div className="flex items-center gap-2">
                 <Settings className="w-5 h-5 text-indigo-600" />
-                <h2 className="text-xl font-extrabold text-indigo-950 font-display">
-                  Configurações da Partida
+                <h2 className="text-lg font-bold text-indigo-950 font-display">
+                  Regras da Partida
                 </h2>
               </div>
               <span className="text-xs font-bold text-indigo-600">
-                {isHost ? 'Você pode ajustar as regras' : 'Definido pelo líder da sala'}
+                {isHost ? 'Você pode ajustar as regras' : 'Definido pelo anfitrião'}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
+                <label className="block text-xs font-bold text-indigo-900 mb-1.5">
                   Nome da Sala (Personalizado)
                 </label>
                 <input
@@ -1386,19 +1401,19 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   }}
                   placeholder="Digite o nome que quiser para a sala..."
                   maxLength={45}
-                  className="w-full bg-indigo-50/80 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-600"
+                  className="w-full bg-indigo-50/70 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2 text-sm font-bold text-indigo-950 focus:bg-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
-                  Limite de Jogadores (Até 35)
+                <label className="block text-xs font-bold text-indigo-900 mb-1.5">
+                  Limite de Jogadores (Suporta até 35)
                 </label>
                 <select
                   disabled={!isHost}
                   value={roomState.settings.maxPlayers}
                   onChange={(e) => handleUpdateSetting('maxPlayers', Number(e.target.value))}
-                  className="w-full bg-indigo-50/80 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-600"
+                  className="w-full bg-indigo-50/70 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
                 >
                   <option value={8}>Até 8 jogadores</option>
                   <option value={12}>Até 12 jogadores</option>
@@ -1409,12 +1424,12 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 </select>
               </div>
 
-              <div className="sm:col-span-2 bg-indigo-50/50 border-2 border-indigo-100 rounded-2xl p-3.5 flex flex-col gap-2">
+              <div className="sm:col-span-2 bg-indigo-50/60 border-2 border-indigo-100 rounded-2xl p-3.5 flex flex-col gap-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="text-xs font-extrabold text-indigo-950">
+                  <label className="text-xs font-bold text-indigo-950">
                     Tempo de Desenho (Personalizado em Segundos — de 10s a 600s)
                   </label>
-                  <span className="text-xs font-mono font-extrabold text-indigo-700">
+                  <span className="text-xs font-mono font-bold text-indigo-700">
                     Atual: {roomState.settings.roundDuration} segundos
                   </span>
                 </div>
@@ -1444,9 +1459,9 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                         handleUpdateSetting('roundDuration', clamped);
                       }}
                       placeholder="Ex: 75"
-                      className="w-28 bg-white border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3 py-2 text-sm font-mono font-extrabold text-indigo-950 focus:outline-none focus:border-indigo-600"
+                      className="w-28 bg-white border-2 border-indigo-300 disabled:opacity-60 rounded-xl px-3 py-1.5 text-sm font-mono font-bold text-indigo-950 focus:outline-none focus:border-indigo-600"
                     />
-                    <span className="text-xs font-extrabold text-indigo-900">segundos</span>
+                    <span className="text-xs font-bold text-indigo-800">segundos</span>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-1.5 ml-auto">
@@ -1461,9 +1476,9 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                             setLobbyDurationStr(String(presetSec));
                             handleUpdateSetting('roundDuration', presetSec);
                           }}
-                          className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-extrabold border transition-colors cursor-pointer disabled:opacity-50 ${
+                          className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold border transition-colors cursor-pointer disabled:opacity-50 ${
                             isCurrent
-                              ? 'bg-amber-400 border-amber-500 text-indigo-950 shadow-2xs'
+                              ? 'bg-indigo-600 border-indigo-950 text-white'
                               : 'bg-white border-indigo-200 text-indigo-800 hover:bg-indigo-100'
                           }`}
                         >
@@ -1476,7 +1491,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
+                <label className="block text-xs font-bold text-indigo-900 mb-1.5">
                   Rodadas por Jogador
                 </label>
                 <select
@@ -1485,7 +1500,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   onChange={(e) =>
                     handleUpdateSetting('roundsPerPlayer', Number(e.target.value) as 1 | 2 | 3)
                   }
-                  className="w-full bg-indigo-50/80 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-600"
+                  className="w-full bg-indigo-50/70 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
                 >
                   <option value={1}>1 vez cada jogador</option>
                   <option value={2}>2 vezes cada jogador</option>
@@ -1494,7 +1509,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
+                <label className="block text-xs font-bold text-indigo-900 mb-1.5">
                   Escolha do Tema
                 </label>
                 <select
@@ -1506,16 +1521,16 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                       e.target.value as 'drawer_chooses' | 'host_chooses' | 'random'
                     )
                   }
-                  className="w-full bg-indigo-50/80 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-600"
+                  className="w-full bg-indigo-50/70 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
                 >
                   <option value="drawer_chooses">Desenhista da vez escolhe</option>
-                  <option value="host_chooses">Líder da sala escolhe</option>
-                  <option value="random">Sorteio surpresa automático</option>
+                  <option value="host_chooses">Anfitrião da sala escolhe</option>
+                  <option value="random">Sorteio automático</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
+                <label className="block text-xs font-bold text-indigo-900 mb-1.5">
                   Dificuldade das Palavras
                 </label>
                 <select
@@ -1524,7 +1539,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   onChange={(e) =>
                     handleUpdateSetting('difficulty', e.target.value as 'easy' | 'medium' | 'mixed')
                   }
-                  className="w-full bg-indigo-50/80 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-600"
+                  className="w-full bg-indigo-50/70 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
                 >
                   <option value="easy">Fácil</option>
                   <option value="medium">Médio</option>
@@ -1532,9 +1547,9 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 </select>
               </div>
 
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
-                  Estilo de Pontuação
+              <div>
+                <label className="block text-xs font-bold text-indigo-900 mb-1.5">
+                  Modo de Pontuação
                 </label>
                 <select
                   disabled={!isHost}
@@ -1542,10 +1557,10 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   onChange={(e) =>
                     handleUpdateSetting('scoringMode', e.target.value as 'competitive' | 'casual')
                   }
-                  className="w-full bg-indigo-50/80 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-600"
+                  className="w-full bg-indigo-50/70 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
                 >
-                  <option value="competitive">Competitivo com Ranking (100/80/60/40 pts)</option>
-                  <option value="casual">Casual e Descontraído (Sem pressão)</option>
+                  <option value="competitive">Competitivo com Ranking</option>
+                  <option value="casual">Casual e Descontraído</option>
                 </select>
               </div>
             </div>
@@ -1592,22 +1607,22 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           PHASE 2: ROUND_SETUP & THEME_SELECTION
          ======================================================================== */}
       {(roomState.status === 'ROUND_SETUP' || roomState.status === 'THEME_SELECTION') && round && (
-        <div className="game-panel rounded-3xl p-7 max-w-4xl mx-auto w-full flex flex-col gap-6">
+        <div className="party-card rounded-3xl p-7 max-w-4xl mx-auto w-full flex flex-col gap-6">
           <div className="text-center max-w-xl mx-auto">
-            <p className="text-xs font-extrabold text-indigo-600 uppercase tracking-wider mb-1">
+            <p className="text-xs font-bold text-indigo-600 mb-1">
               Rodada {round.roundNumber} de {round.totalRounds} · Desenhista da Vez: {round.drawerNickname}
             </p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-indigo-950 mb-2 font-display">
+            <h2 className="text-2xl sm:text-3xl font-bold text-indigo-950 mb-2 font-display">
               {(roomState.settings.themeMode === 'host_chooses' ? isHost : isDrawer)
                 ? 'Escolha o Tema desta Rodada!'
                 : `Aguardando ${
                     roomState.settings.themeMode === 'host_chooses'
-                      ? 'o líder da sala'
+                      ? 'o anfitrião da sala'
                       : round.drawerNickname
                   } escolher o tema...`}
             </h2>
-            <p className="text-sm font-medium text-indigo-800/80">
-              Clique em um cartão abaixo para sortear a palavra secreta do desenho.
+            <p className="text-sm text-indigo-700">
+              Selecione uma categoria abaixo para sortear a palavra secreta da rodada.
             </p>
           </div>
 
@@ -1631,37 +1646,37 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                       role="radio"
                       aria-checked={isSelected}
                       onClick={() => setSelectedThemeCard(theme.id)}
-                      className={`text-left p-5 rounded-3xl border-3 transition-all flex flex-col justify-between gap-3.5 ${
+                      className={`text-left p-5 rounded-3xl border-3 transition-all flex flex-col justify-between gap-4 ${
                         isSelected
-                          ? 'bg-amber-100 border-amber-500 shadow-lg scale-[1.02]'
+                          ? 'bg-amber-100 border-indigo-950 shadow-[0_5px_0_#1e1b4b] -translate-y-1'
                           : canSelect
-                          ? 'bg-indigo-50/70 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer'
-                          : 'bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed'
+                          ? 'bg-indigo-50/70 border-indigo-200 hover:border-indigo-500 hover:bg-white cursor-pointer'
+                          : 'bg-indigo-50/40 border-indigo-100 opacity-75 cursor-not-allowed'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div
                           className={`p-3 rounded-2xl border-2 ${
                             isSelected
-                              ? 'bg-amber-400 text-indigo-950 border-amber-600'
+                              ? 'bg-amber-400 text-indigo-950 border-indigo-950'
                               : 'bg-white text-indigo-600 border-indigo-200'
                           }`}
                         >
                           <ThemeIcon iconName={theme.iconName} className="w-6 h-6" />
                         </div>
                         {isSelected && (
-                          <span className="inline-flex items-center gap-1 text-xs font-extrabold text-amber-900">
-                            <CheckCircle2 className="w-4 h-4 text-amber-600" />
-                            Escolhido!
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-950">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            Selecionado
                           </span>
                         )}
                       </div>
 
                       <div>
-                        <div className="text-lg font-extrabold text-indigo-950 mb-1 font-display">
+                        <div className="text-lg font-bold text-indigo-950 mb-1 font-display">
                           {theme.name}
                         </div>
-                        <p className="text-xs font-medium text-indigo-800/80 leading-relaxed">
+                        <p className="text-xs text-indigo-700 leading-relaxed">
                           {theme.description}
                         </p>
                       </div>
@@ -1671,7 +1686,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               </div>
 
               {(roomState.settings.themeMode === 'host_chooses' ? isHost : isDrawer) && (
-                <div className="flex items-center justify-end gap-3 pt-3 border-t-2 border-indigo-100">
+                <div className="flex items-center justify-end gap-3 pt-2 border-t-2 border-indigo-100">
                   <button
                     type="button"
                     disabled={!selectedThemeCard}
@@ -1680,9 +1695,9 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                         sendWs('theme:select', { themeId: selectedThemeCard });
                       }
                     }}
-                    className="game-btn-amber px-8 py-4 rounded-2xl disabled:opacity-40 disabled:pointer-events-none font-extrabold text-sm whitespace-nowrap cursor-pointer"
+                    className="party-btn-yellow px-7 py-3.5 rounded-2xl disabled:opacity-40 disabled:pointer-events-none font-bold text-sm whitespace-nowrap cursor-pointer"
                   >
-                    Confirmar Tema e Sortear Palavra!
+                    Confirmar Tema e Sortear Palavra
                   </button>
                 </div>
               )}
@@ -1695,34 +1710,34 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           PHASE 3: WORD_REVEAL
          ======================================================================== */}
       {roomState.status === 'WORD_REVEAL' && round && (
-        <div className="game-panel rounded-3xl p-8 max-w-2xl mx-auto w-full text-center flex flex-col items-center gap-4">
-          <div className="p-4 rounded-3xl bg-amber-300 border-3 border-amber-500 text-indigo-950 shadow-md">
-            <Sparkles className="w-9 h-9" />
+        <div className="party-card rounded-3xl p-8 max-w-2xl mx-auto w-full text-center flex flex-col items-center gap-4">
+          <div className="p-4 rounded-2xl bg-amber-300 border-2 border-indigo-950 text-indigo-950 shadow-[0_3px_0_#1e1b4b]">
+            <Sparkles className="w-8 h-8" />
           </div>
-          <p className="text-xs font-extrabold text-indigo-700 uppercase tracking-wider">
+          <p className="text-xs font-bold text-indigo-600">
             Tema: <span className="text-indigo-950">{round.themeName}</span> ·{' '}
-            <span className="font-mono text-amber-700">{round.wordLetterCount} letras</span>
+            <span className="font-mono">{round.wordLetterCount} letras</span>
           </p>
 
           {isDrawer && privateWord ? (
             <>
-              <h2 className="text-lg font-extrabold text-indigo-900">
+              <h2 className="text-lg font-bold text-indigo-700">
                 Prepare o pincel! Sua palavra secreta é:
               </h2>
-              <div className="px-10 py-4 rounded-3xl bg-amber-100 border-4 border-amber-400 text-3xl sm:text-4xl font-extrabold text-indigo-950 tracking-wide font-display shadow-sm">
+              <div className="px-8 py-4 rounded-2xl bg-amber-200 border-3 border-indigo-950 shadow-[0_4px_0_#1e1b4b] text-3xl sm:text-4xl font-bold text-indigo-950 tracking-wide font-display">
                 {privateWord.word}
               </div>
-              <p className="text-xs font-medium text-indigo-800/80 max-w-md">
-                Capriche no desenho usando o pincel livre e as formas geométricas!
+              <p className="text-xs text-indigo-700 max-w-md">
+                Use o pincel livre e as formas geométricas para ilustrar a palavra sem escrever letras!
               </p>
             </>
           ) : (
             <>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-indigo-950 font-display">
+              <h2 className="text-2xl font-bold text-indigo-950 font-display">
                 {round.drawerNickname} vai começar a desenhar!
               </h2>
-              <p className="text-sm font-medium text-indigo-800/80 max-w-md">
-                Fique de olho na tela! A palavra sorteada tem{' '}
+              <p className="text-sm text-indigo-700 max-w-md">
+                Fique de olho na tela! A palavra sorteada possui{' '}
                 <strong className="text-indigo-950">{round.wordLetterCount} letras</strong> no tema{' '}
                 <strong className="text-indigo-950">{round.themeName}</strong>.
               </p>
@@ -1732,7 +1747,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
       )}
 
       {/* ========================================================================
-          PHASE 4: MAIN DRAWING & GUESSING ARENA (EXPANDED CANVAS + CLEAN SIDEBAR)
+          PHASE 4: MAIN DRAWING & GUESSING ARENA (CLEAN & EXPANDED CANVAS)
          ======================================================================== */}
       {(roomState.status === 'DRAWING' || roomState.status === 'PAUSED') && round && (
         <div className="flex flex-col gap-2.5">
@@ -1743,7 +1758,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               onClick={() =>
                 setMobilePanel((p) => (p === 'players' ? 'none' : 'players'))
               }
-              className="flex-1 py-2 px-3 rounded-xl bg-white border-2 border-indigo-200 text-xs font-extrabold text-indigo-950 flex items-center justify-center gap-1.5"
+              className="flex-1 py-2 px-3 rounded-xl bg-white border-2 border-indigo-950 text-xs font-bold text-indigo-950 flex items-center justify-center gap-1.5"
             >
               <Users className="w-4 h-4 text-indigo-600" />
               <span>Jogadores ({roomState.players.length})</span>
@@ -1751,19 +1766,16 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
             <button
               type="button"
               onClick={() => setMobilePanel((p) => (p === 'feed' ? 'none' : 'feed'))}
-              className="flex-1 py-2 px-3 rounded-xl bg-white border-2 border-indigo-200 text-xs font-extrabold text-indigo-950 flex items-center justify-center gap-1.5"
+              className="flex-1 py-2 px-3 rounded-xl bg-white border-2 border-indigo-950 text-xs font-bold text-indigo-950 flex items-center justify-center gap-1.5"
             >
-              <MessageSquare className="w-4 h-4 text-indigo-600" />
+              <MessageSquare className="w-4 h-4 text-emerald-600" />
               <span>Chat ({roomState.feed.length})</span>
             </button>
           </div>
 
-          {/* 2-COLUMN CLEAN ARENA:
-              Left/Center (8 cols): Large Drawing Board + Guess Input
-              Right (4 cols): Compact Players Ranking + Chat Feed */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-            {/* MAIN EXPANDED DRAWING BOARD (8 COLS) */}
-            <div className="lg:col-span-8 flex flex-col gap-2.5">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
+            {/* MAIN EXPANDED DRAWING BOARD (9 COLS — 75% OF SCREEN WIDTH!) */}
+            <div className="lg:col-span-9 flex flex-col gap-2">
               <DrawingCanvas
                 ref={canvasHandleRef}
                 initialStrokes={roomState.strokes}
@@ -1779,15 +1791,15 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
 
               {/* Direct Guess Input Box right under the canvas for Guessers */}
               {!isDrawer && (
-                <div className="game-panel rounded-2xl p-2.5 flex flex-col gap-1.5">
+                <div className="bg-white border-2 border-indigo-950 shadow-[0_4px_0_#1e1b4b] rounded-2xl p-2.5 flex flex-col gap-1.5">
                   {me?.hasGuessedThisRound ? (
-                    <div className="flex items-center justify-between gap-2 bg-emerald-100 border-2 border-emerald-400 text-emerald-950 px-4 py-2 rounded-xl text-sm font-extrabold">
+                    <div className="flex items-center justify-between gap-2 bg-emerald-100 border border-emerald-400 text-emerald-950 px-3.5 py-2 rounded-xl text-sm font-bold">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                         <span>Você acertou a palavra!</span>
                       </div>
                       {roomState.settings.scoringMode === 'competitive' && (
-                        <span className="font-mono text-xs font-extrabold text-emerald-800 tabular-nums">
+                        <span className="font-mono text-xs font-bold text-emerald-800">
                           +{me.roundPointsEarned} pts
                         </span>
                       )}
@@ -1802,12 +1814,12 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                         maxLength={80}
                         placeholder={`Digite seu palpite (${round.wordLetterCount} letras)...`}
                         aria-label="Digite seu palpite"
-                        className="flex-1 bg-indigo-50/90 border-2 border-indigo-200 focus:border-amber-500 rounded-xl px-4 py-2.5 text-sm font-extrabold text-indigo-950 placeholder:text-indigo-400 focus:outline-none"
+                        className="flex-1 bg-indigo-50/70 border-2 border-indigo-200 focus:border-emerald-500 focus:bg-white rounded-xl px-3.5 py-2 text-sm font-bold text-indigo-950 placeholder:text-indigo-400 focus:outline-none transition-colors"
                       />
                       <button
                         type="submit"
                         disabled={roomState.status !== 'DRAWING' || !guessText.trim()}
-                        className="game-btn-amber px-5 py-2.5 rounded-xl disabled:opacity-40 disabled:pointer-events-none font-extrabold text-sm flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+                        className="party-btn-emerald px-5 py-2 rounded-xl disabled:opacity-40 disabled:pointer-events-none font-bold text-sm flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         <Send className="w-4 h-4" />
                         <span>Chutar</span>
@@ -1816,7 +1828,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   )}
 
                   {privateGuessFeedback && !me?.hasGuessedThisRound && (
-                    <div role="status" className="text-xs text-rose-700 font-extrabold px-1">
+                    <div role="status" className="text-xs text-rose-700 font-bold px-1">
                       {privateGuessFeedback.text}
                     </div>
                   )}
@@ -1824,21 +1836,21 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               )}
             </div>
 
-            {/* RIGHT SIDEBAR (4 COLS): Compact Players Ranking + Chat */}
-            <div className="lg:col-span-4 flex flex-col gap-3">
+            {/* RIGHT SIDEBAR (3 COLS): Compact Players Ranking + Chat */}
+            <div className="lg:col-span-3 flex flex-col gap-3">
               {/* Compact Players List */}
               <div
                 className={`${
                   mobilePanel === 'players' ? 'flex' : 'hidden lg:flex'
-                } game-panel rounded-3xl p-3.5 flex-col gap-2`}
+                } bg-white border-2 border-indigo-950 shadow-[0_4px_0_#1e1b4b] rounded-2xl p-3 flex-col gap-2`}
               >
                 <div className="flex items-center justify-between pb-1.5 border-b border-indigo-100">
-                  <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide">
+                  <span className="text-xs font-bold text-indigo-950">
                     Jogadores ({roomState.players.length})
                   </span>
                 </div>
 
-                <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
+                <div className="flex flex-col gap-1.5 max-h-[210px] overflow-y-auto pr-1">
                   {[...roomState.players]
                     .sort((a, b) => b.score - a.score)
                     .map((p, idx) => {
@@ -1855,25 +1867,25 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                           }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-mono text-xs font-extrabold text-indigo-400 w-4 text-center tabular-nums shrink-0">
-                              {idx + 1}º
+                            <span className="font-mono text-[11px] font-bold text-indigo-400 w-3.5 text-center shrink-0">
+                              {idx + 1}
                             </span>
-                            <AvatarSvg avatarId={p.avatarId} size={32} />
+                            <AvatarSvg avatarId={p.avatarId} size={30} />
                             <div className="min-w-0">
-                              <div className="text-xs font-extrabold text-indigo-950 truncate">
+                              <div className="text-xs font-bold text-indigo-950 truncate">
                                 {p.nickname}
                               </div>
-                              <div className="text-[10px] font-bold text-indigo-600/80">
+                              <div className="text-[10px] font-semibold text-indigo-600">
                                 {isCurrentDrawer
-                                  ? `✏️ Desenhando (+${round.drawerPointsPerPerson ?? 0} pts/acerto)`
+                                  ? `Desenhando (+${round.drawerPointsPerPerson ?? 0} pts/acerto)`
                                   : p.hasGuessedThisRound
-                                  ? `✅ Acertou (${p.guessOrder}º · +${p.roundPointsEarned} pts)`
+                                  ? `Acertou (${p.guessOrder}º · +${p.roundPointsEarned} pts)`
                                   : 'Adivinhando'}
                               </div>
                             </div>
                           </div>
 
-                          <div className="font-mono text-xs font-extrabold text-indigo-950 tabular-nums shrink-0">
+                          <div className="font-mono text-xs font-bold text-indigo-950 shrink-0">
                             {p.score} pts
                           </div>
                         </div>
@@ -1886,28 +1898,28 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               <div
                 className={`${
                   mobilePanel === 'feed' ? 'flex' : 'hidden lg:flex'
-                } game-panel rounded-3xl p-3.5 flex-col gap-2`}
+                } bg-white border-2 border-indigo-950 shadow-[0_4px_0_#1e1b4b] rounded-2xl p-3 flex-col gap-2`}
               >
                 <div
-                  className="flex flex-col gap-1.5 max-h-[260px] min-h-[180px] overflow-y-auto pr-1 text-xs"
+                  className="flex flex-col gap-1.5 max-h-[250px] min-h-[170px] overflow-y-auto pr-1 text-xs"
                   aria-live="polite"
                 >
-                  {roomState.feed.slice(-16).map((msg) => (
+                  {roomState.feed.slice(-14).map((msg) => (
                     <div
                       key={msg.id}
-                      className={`px-3 py-2 rounded-xl border font-medium leading-snug ${
+                      className={`px-2.5 py-1.5 rounded-xl border leading-snug ${
                         msg.type === 'correct_guess'
-                          ? 'bg-emerald-100 border-emerald-300 text-emerald-950 font-extrabold'
+                          ? 'bg-emerald-100 border-emerald-300 text-emerald-950 font-bold'
                           : msg.type === 'hint'
                           ? 'bg-amber-100 border-amber-300 text-amber-950 font-bold'
                           : msg.type === 'chat'
-                          ? 'bg-indigo-50 border-indigo-100 text-indigo-950'
-                          : 'bg-slate-50 border-slate-200 text-indigo-800/80'
+                          ? 'bg-indigo-50/70 border-indigo-100 text-indigo-950'
+                          : 'bg-slate-50 border-slate-200 text-indigo-700'
                       }`}
                     >
                       {msg.type === 'chat' && msg.playerNickname ? (
                         <>
-                          <strong className="font-extrabold text-indigo-700">
+                          <strong className="font-bold text-indigo-700">
                             {msg.playerNickname}:{' '}
                           </strong>
                           <span>{msg.text}</span>
@@ -1930,11 +1942,11 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                       onChange={(e) => setChatText(e.target.value)}
                       placeholder="Conversar no chat..."
                       maxLength={100}
-                      className="flex-1 bg-indigo-50/90 border border-indigo-200 rounded-xl px-3 py-2 text-xs font-bold text-indigo-950 placeholder:text-indigo-400 focus:outline-none focus:border-indigo-500"
+                      className="flex-1 bg-indigo-50/70 border border-indigo-200 rounded-xl px-2.5 py-1.5 text-xs font-medium text-indigo-950 placeholder:text-indigo-400 focus:outline-none focus:border-indigo-500"
                     />
                     <button
                       type="submit"
-                      className="game-btn-violet px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold whitespace-nowrap cursor-pointer"
                     >
                       Enviar
                     </button>
@@ -1950,29 +1962,29 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           PHASE 5: ROUND RESULT & NEXT ROUND
          ======================================================================== */}
       {(roomState.status === 'ROUND_RESULT' || roomState.status === 'NEXT_ROUND') && round && (
-        <div className="game-panel rounded-3xl p-7 max-w-4xl mx-auto w-full flex flex-col gap-6">
+        <div className="party-card rounded-3xl p-7 max-w-4xl mx-auto w-full flex flex-col gap-6">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-indigo-100 pb-4">
             <div>
-              <p className="text-xs font-extrabold text-indigo-600 uppercase tracking-wider mb-1">
+              <p className="text-xs font-bold text-indigo-600 mb-1">
                 Fim da Rodada {round.roundNumber} de {round.totalRounds} · Tema: {round.themeName}
               </p>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-indigo-950 font-display">
+              <h2 className="text-2xl sm:text-3xl font-bold text-indigo-950 font-display">
                 A palavra secreta era:{' '}
-                <span className="text-amber-600 underline decoration-amber-400 underline-offset-4">
+                <span className="text-emerald-600 underline decoration-amber-400 underline-offset-4">
                   {round.revealedWord ?? '---'}
                 </span>
               </h2>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="font-mono text-xs font-extrabold text-indigo-700 tabular-nums">
+              <span className="font-mono text-xs font-bold text-indigo-700">
                 Próxima rodada em {remainingSeconds}s
               </span>
               {isHost && roomState.status === 'ROUND_RESULT' && (
                 <button
                   type="button"
                   onClick={() => sendWs('round:next_now')}
-                  className="game-btn-amber px-5 py-2.5 rounded-xl font-extrabold text-xs whitespace-nowrap cursor-pointer"
+                  className="party-btn-yellow px-5 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap cursor-pointer"
                 >
                   Próxima Rodada Agora
                 </button>
@@ -1982,7 +1994,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
             <div className="md:col-span-6 flex flex-col gap-2">
-              <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide">
+              <span className="text-xs font-bold text-indigo-900">
                 Obra de Arte de {round.drawerNickname}
               </span>
               <DrawingCanvas
@@ -1998,18 +2010,18 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
             </div>
 
             <div className="md:col-span-6 flex flex-col gap-4">
-              <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex flex-col gap-2">
+              <div className="bg-indigo-50 border-2 border-indigo-100 rounded-2xl p-4 flex flex-col gap-2">
                 <div className="text-xs font-bold text-indigo-700 flex items-center justify-between">
                   <span>Resumo do Turno</span>
                   <span>Dicas usadas: {round.hintsUsed}</span>
                 </div>
-                <div className="text-base font-extrabold text-indigo-950 font-display">
+                <div className="text-base font-bold text-indigo-950 font-display">
                   {round.correctGuessesOrder.length === 0
-                    ? 'Ninguém descobriu a tempo — estava difícil!'
+                    ? 'Ninguém descobriu a tempo nesta rodada!'
                     : `${round.correctGuessesOrder.length} de ${round.eligibleGuessersCount} jogadores acertaram!`}
                 </div>
-                <div className="text-xs font-extrabold text-amber-800 font-mono tabular-nums">
-                  Artista ({round.drawerNickname}): +{round.drawerPointsEarned ?? 0} pts (
+                <div className="text-xs font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded-xl px-3 py-1.5 font-mono">
+                  Desenhista ({round.drawerNickname}): +{round.drawerPointsEarned ?? 0} pts (
                   {round.correctGuessesOrder.length} acertos × {round.drawerPointsPerPerson ?? 0}{' '}
                   pts/pessoa)
                 </div>
@@ -2017,21 +2029,21 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
 
               {round.correctGuessesOrder.length > 0 && (
                 <div className="flex flex-col gap-2">
-                  <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide">
+                  <span className="text-xs font-bold text-indigo-900">
                     Quem Acertou Mais Rápido
                   </span>
                   {round.correctGuessesOrder.map((rec) => (
                     <div
                       key={rec.playerId}
-                      className="flex items-center justify-between bg-emerald-50 border-2 border-emerald-300 rounded-2xl px-4 py-2.5"
+                      className="flex items-center justify-between bg-emerald-50 border-2 border-emerald-200 rounded-2xl px-4 py-2.5"
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="font-mono text-xs font-extrabold text-emerald-700 tabular-nums">
+                        <span className="font-mono text-xs font-bold text-emerald-700">
                           {rec.order}º
                         </span>
                         <AvatarSvg avatarId={rec.avatarId} size={34} />
                         <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-extrabold text-indigo-950">
+                          <span className="text-sm font-bold text-indigo-950">
                             {rec.nickname}
                           </span>
                           {typeof rec.responseTimeSec === 'number' && (
@@ -2041,7 +2053,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                           )}
                         </div>
                       </div>
-                      <span className="font-mono text-xs font-extrabold text-emerald-700 tabular-nums">
+                      <span className="font-mono text-xs font-bold text-emerald-800">
                         +{rec.pointsAwarded} pts
                       </span>
                     </div>
@@ -2057,17 +2069,17 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           PHASE 6: GAME RESULT / CELEBRATORY PODIUM
          ======================================================================== */}
       {roomState.status === 'GAME_RESULT' && (
-        <div className="game-panel rounded-3xl p-7 max-w-4xl mx-auto w-full flex flex-col gap-6">
+        <div className="party-card rounded-3xl p-7 max-w-4xl mx-auto w-full flex flex-col gap-6">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-indigo-100 pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-3.5 rounded-2xl bg-amber-300 border-2 border-amber-500 text-indigo-950 shadow-sm">
+              <div className="p-3.5 rounded-2xl bg-amber-300 border-2 border-indigo-950 text-indigo-950 shadow-[0_3px_0_#1e1b4b]">
                 <Trophy className="w-7 h-7" />
               </div>
               <div>
-                <p className="text-xs font-extrabold text-indigo-600 uppercase tracking-wider">
-                  Fim de Jogo!
+                <p className="text-xs font-bold text-indigo-600">
+                  Fim de Jogo · Parabéns a todos os artistas!
                 </p>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-indigo-950 font-display">
+                <h2 className="text-2xl sm:text-3xl font-bold text-indigo-950 font-display">
                   Pódio dos Campeões
                 </h2>
               </div>
@@ -2077,7 +2089,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               <button
                 type="button"
                 onClick={handleCopyMatchSummary}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border-2 border-indigo-200 text-xs font-extrabold transition-colors whitespace-nowrap cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border-2 border-indigo-200 text-xs font-bold transition-colors whitespace-nowrap cursor-pointer"
               >
                 {copiedSummary ? (
                   <>
@@ -2097,7 +2109,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   <button
                     type="button"
                     onClick={() => sendWs('game:return_lobby')}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border-2 border-indigo-200 text-xs font-extrabold transition-colors whitespace-nowrap cursor-pointer"
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border-2 border-indigo-200 text-xs font-bold transition-colors whitespace-nowrap cursor-pointer"
                   >
                     <RotateCcw className="w-4 h-4" />
                     <span>Voltar ao Lobby</span>
@@ -2105,10 +2117,10 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   <button
                     type="button"
                     onClick={() => sendWs('game:start')}
-                    className="game-btn-amber flex items-center gap-1.5 px-6 py-2.5 rounded-xl font-extrabold text-xs whitespace-nowrap cursor-pointer"
+                    className="party-btn-yellow flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap cursor-pointer"
                   >
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>Jogar Novamente!</span>
+                    <Play className="w-4 h-4 fill-indigo-950" />
+                    <span>Jogar Novamente</span>
                   </button>
                 </>
               )}
@@ -2125,21 +2137,21 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   key={p.id}
                   className={`rounded-3xl p-5 border-3 flex flex-col items-center text-center gap-2 ${
                     idx === 0
-                      ? 'bg-amber-100 border-amber-400 shadow-md'
+                      ? 'bg-amber-100 border-indigo-950 shadow-[0_5px_0_#1e1b4b]'
                       : idx === 1
-                      ? 'bg-indigo-50 border-indigo-200'
-                      : 'bg-rose-50 border-rose-200'
+                      ? 'bg-indigo-50 border-indigo-300'
+                      : 'bg-orange-50 border-orange-300'
                   }`}
                 >
-                  <div className="flex items-center gap-1 text-xs font-extrabold text-indigo-900">
+                  <div className="flex items-center gap-1 text-xs font-bold text-indigo-900">
                     <Medal className="w-4 h-4 text-amber-600" />
                     <span>{idx + 1}º Lugar</span>
                   </div>
-                  <AvatarSvg avatarId={p.avatarId} size={64} />
-                  <div className="font-extrabold text-base text-indigo-950 font-display truncate max-w-full">
+                  <AvatarSvg avatarId={p.avatarId} size={64} mood="excited" />
+                  <div className="font-bold text-base text-indigo-950 font-display truncate max-w-full">
                     {p.nickname}
                   </div>
-                  <div className="font-mono text-sm font-extrabold text-emerald-700 tabular-nums">
+                  <div className="font-mono text-sm font-bold text-indigo-700">
                     {p.score} pontos
                   </div>
                 </div>
@@ -2149,9 +2161,9 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b-2 border-indigo-100 text-xs font-extrabold text-indigo-700 uppercase">
+                <tr className="border-b-2 border-indigo-100 text-xs font-bold text-indigo-600">
                   <th className="py-3 px-4">Posição</th>
-                  <th className="py-3 px-4">Jogador</th>
+                  <th className="py-3 px-4">Artista</th>
                   <th className="py-3 px-4 text-right">Acertos</th>
                   <th className="py-3 px-4 text-right">Desenhos</th>
                   <th className="py-3 px-4 text-right">Pontuação Total</th>
@@ -2161,8 +2173,8 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 {[...roomState.players]
                   .sort((a, b) => b.score - a.score)
                   .map((p, idx) => (
-                    <tr key={p.id} className="hover:bg-indigo-50/60">
-                      <td className="py-3.5 px-4 font-mono font-extrabold text-indigo-950 tabular-nums">
+                    <tr key={p.id} className="hover:bg-indigo-50/50">
+                      <td className="py-3.5 px-4 font-mono font-bold text-indigo-950">
                         <span className="inline-flex items-center gap-1.5">
                           {idx === 0 && <Crown className="w-4 h-4 text-amber-500 fill-amber-400" />}
                           {idx + 1}º
@@ -2172,22 +2184,22 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                         <div className="flex items-center gap-3">
                           <AvatarSvg avatarId={p.avatarId} size={40} />
                           <div>
-                            <div className="font-extrabold text-indigo-950">
+                            <div className="font-bold text-indigo-950">
                               {p.nickname} {p.id === playerId && '(Você)'}
                             </div>
-                            <div className="text-xs font-bold text-indigo-600">
+                            <div className="text-xs text-indigo-600">
                               {AVATAR_LIST[Math.abs(p.avatarId || 0) % AVATAR_LIST.length].label}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-indigo-900 tabular-nums">
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-indigo-800">
                         {p.totalCorrectGuesses}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-indigo-900 tabular-nums">
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-indigo-800">
                         {p.timesDrawn}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-extrabold text-emerald-700 tabular-nums">
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-700">
                         {p.score} pts
                       </td>
                     </tr>

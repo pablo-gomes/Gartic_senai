@@ -5,43 +5,49 @@ import { PlayerPublicState } from '../shared/types';
 
 interface CatalogWordItem {
   id: string;
+  word: string;
   themeId: string;
-  text: string;
+  themeName: string;
   difficulty: 'easy' | 'medium';
-  enabled: boolean;
-  contentRating: string;
+  hint1: string;
+  hint2: string;
 }
 
 interface CatalogModerationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  roomId?: string;
-  reporterId?: string;
-  players?: PlayerPublicState[];
+  roomId: string;
+  reporterId: string;
+  players: PlayerPublicState[];
 }
 
 export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
   isOpen,
   onClose,
-  roomId = 'lobby',
-  reporterId = 'anon',
-  players = [],
+  roomId,
+  reporterId,
+  players,
 }) => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'report'>('catalog');
   const [words, setWords] = useState<CatalogWordItem[]>([]);
   const [selectedTheme, setSelectedTheme] = useState<string>('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [loading, setLoading] = useState<boolean>(false);
 
   // Report state
   const [targetPlayerId, setTargetPlayerId] = useState<string>('');
-  const [reportReason, setReportReason] = useState<string>('');
-  const [reportSubmitted, setReportSubmitted] = useState<boolean>(false);
-  const [reportError, setReportError] = useState<string>('');
+  const [reason, setReason] = useState<string>('Desenho inadequado');
+  const [details, setDetails] = useState<string>('');
+  const [reportStatus, setReportStatus] = useState<'idle' | 'submitting' | 'done'>('idle');
 
   useEffect(() => {
     if (!isOpen) return;
     setLoading(true);
-    fetch('/api/catalog')
+    const params = new URLSearchParams();
+    if (selectedTheme !== 'all') params.set('themeId', selectedTheme);
+    if (selectedDifficulty !== 'all') params.set('difficulty', selectedDifficulty);
+
+    fetch(`/api/catalog/words?${params.toString()}`)
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data.words)) {
@@ -50,58 +56,34 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [isOpen]);
+  }, [isOpen, selectedTheme, selectedDifficulty]);
 
   if (!isOpen) return null;
 
-  const handleToggleWord = async (wordId: string, nextEnabled: boolean) => {
-    setWords((prev) =>
-      prev.map((w) => (w.id === wordId ? { ...w, enabled: nextEnabled } : w))
-    );
-    try {
-      await fetch('/api/catalog/toggle-word', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wordId, enabled: nextEnabled }),
-      });
-    } catch {}
-  };
-
-  const handleSubmitReport = async (e: React.FormEvent) => {
+  const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setReportError('');
-    if (!reportReason.trim()) {
-      setReportError('Descreva o motivo da denúncia.');
-      return;
-    }
+    setReportStatus('submitting');
     try {
-      const res = await fetch('/api/moderation/report', {
+      await fetch('/api/moderation/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           roomId,
           reporterId,
-          targetPlayerId: targetPlayerId || undefined,
-          reason: reportReason.trim(),
+          targetPlayerId: targetPlayerId || 'unknown',
+          reason,
+          details,
         }),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        setReportError(err.error || 'Erro ao enviar denúncia.');
-        return;
-      }
-      setReportSubmitted(true);
-      setReportReason('');
-      setTimeout(() => setReportSubmitted(false), 4000);
+      setReportStatus('done');
+      setTimeout(() => {
+        setReportStatus('idle');
+        setDetails('');
+      }, 2500);
     } catch {
-      setReportError('Falha de conexão ao registrar denúncia.');
+      setReportStatus('idle');
     }
   };
-
-  const filteredWords =
-    selectedTheme === 'all'
-      ? words
-      : words.filter((w) => w.themeId === selectedTheme);
 
   return (
     <div
@@ -110,182 +92,203 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
       aria-modal="true"
       aria-labelledby="modal-catalog-title"
     >
-      <div className="game-panel rounded-3xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+      <div className="party-card rounded-3xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-indigo-100">
-          <h2 id="modal-catalog-title" className="text-xl font-extrabold text-indigo-950 font-display">
-            Catálogo de Palavras &amp; Moderação
-          </h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-indigo-100 bg-indigo-50/60">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('catalog')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                activeTab === 'catalog'
+                  ? 'bg-indigo-600 text-white shadow-[0_2px_0_#1e1b4b]'
+                  : 'text-indigo-700 hover:bg-indigo-100'
+              }`}
+            >
+              Catálogo de Temas e Palavras ({words.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('report')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'report'
+                  ? 'bg-rose-500 text-white shadow-[0_2px_0_#881337]'
+                  : 'text-indigo-700 hover:bg-indigo-100'
+              }`}
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              Denunciar / Moderação
+            </button>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-indigo-500 hover:text-indigo-950 hover:bg-indigo-50 transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl text-indigo-500 hover:text-indigo-950 hover:bg-indigo-100 cursor-pointer"
             aria-label="Fechar janela"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Interactive Filter Tabs */}
-        <div className="px-6 pt-4 flex items-center gap-2 border-b-2 border-indigo-100 pb-3">
-          <button
-            type="button"
-            onClick={() => setActiveTab('catalog')}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-              activeTab === 'catalog'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
-            }`}
-          >
-            Palavras do Jogo ({words.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('report')}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-              activeTab === 'report'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
-            }`}
-          >
-            Reportar Comportamento
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">
-          {activeTab === 'catalog' ? (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-indigo-900/80 font-medium">
-                  Ative ou desative palavras do sorteio da sala para personalizar a partida.
+        {/* Body */}
+        {activeTab === 'catalog' ? (
+          <div className="p-6 flex-1 overflow-y-auto flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 id="modal-catalog-title" className="text-lg font-bold text-indigo-950 font-display">
+                  Banco de Palavras em Português
+                </h2>
+                <p className="text-xs text-indigo-600">
+                  Explore os temas que podem ser sorteados nas rodadas do SENAI Phone.
                 </p>
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-indigo-600" />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-indigo-50 border-2 border-indigo-200 rounded-xl px-2.5 py-1.5">
+                  <Filter className="w-3.5 h-3.5 text-indigo-600" />
                   <select
                     value={selectedTheme}
                     onChange={(e) => setSelectedTheme(e.target.value)}
-                    className="bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
                     aria-label="Filtrar por tema"
+                    className="bg-transparent text-xs text-indigo-950 font-bold focus:outline-none"
                   >
-                    <option value="all">Todos os Temas</option>
-                    {THEMES_CATALOG.filter((t) => t.id !== 'misturado').map((t) => (
+                    <option value="all">Todos os Temas ({THEMES_CATALOG.length})</option>
+                    {THEMES_CATALOG.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
                     ))}
                   </select>
                 </div>
-              </div>
 
-              {loading ? (
-                <div className="py-12 text-center text-sm font-bold text-indigo-600">
-                  Carregando catálogo...
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                  {filteredWords.map((w) => {
-                    const themeObj = THEMES_CATALOG.find((t) => t.id === w.themeId);
-                    return (
-                      <div
-                        key={w.id}
-                        className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-colors ${
-                          w.enabled
-                            ? 'bg-indigo-50/70 border-indigo-200 text-indigo-950'
-                            : 'bg-slate-100 border-slate-200 text-slate-400'
+                <select
+                  value={selectedDifficulty}
+                  onChange={(e) => setSelectedDifficulty(e.target.value)}
+                  aria-label="Filtrar por dificuldade"
+                  className="bg-indigo-50 border-2 border-indigo-200 rounded-xl px-2.5 py-1.5 text-xs text-indigo-950 font-bold focus:outline-none"
+                >
+                  <option value="all">Fácil + Médio</option>
+                  <option value="easy">Apenas Fácil</option>
+                  <option value="medium">Apenas Médio</option>
+                </select>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="py-12 text-center text-sm font-bold text-indigo-600">
+                Carregando catálogo...
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                {words.map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-indigo-50/70 border-2 border-indigo-100 rounded-2xl p-3 flex flex-col justify-between gap-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-sm text-indigo-950">{item.word}</span>
+                      <span
+                        className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-lg ${
+                          item.difficulty === 'easy'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-800'
                         }`}
                       >
-                        <div className="min-w-0 pr-2">
-                          <div className="text-sm font-extrabold truncate">{w.text}</div>
-                          <div className="text-xs text-indigo-700/75 flex items-center gap-1.5 font-medium">
-                            <span>{themeObj?.name ?? w.themeId}</span>
-                            <span aria-hidden="true">·</span>
-                            <span>{w.difficulty === 'easy' ? 'Fácil' : 'Médio'}</span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleWord(w.id, !w.enabled)}
-                          className={`px-2.5 py-1.5 rounded-xl text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                            w.enabled
-                              ? 'bg-emerald-500 text-white shadow-2xs'
-                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                          }`}
-                        >
-                          {w.enabled ? 'Ativa' : 'Inativa'}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <form onSubmit={handleSubmitReport} className="flex flex-col gap-4 max-w-lg">
-              <p className="text-sm text-indigo-900/80 font-medium">
-                Use este formulário para reportar apelidos inadequados ou conduta antidesportiva durante a partida.
+                        {item.difficulty === 'easy' ? 'Fácil' : 'Médio'}
+                      </span>
+                    </div>
+                    <div className="text-[11px] font-bold text-indigo-600">{item.themeName}</div>
+                    <div className="text-[11px] text-indigo-800 leading-snug">
+                      Dica: {item.hint1}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleReportSubmit} className="p-6 flex flex-col gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-indigo-950 font-display">
+                Reportar Conduta ou Desenho Inadequado
+              </h2>
+              <p className="text-xs text-indigo-600">
+                Ajude a manter o ambiente divertido e respeitoso para todos na sala.
               </p>
+            </div>
 
-              {players.length > 0 && (
-                <div>
-                  <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
-                    Jogador envolvido (opcional)
-                  </label>
-                  <select
-                    value={targetPlayerId}
-                    onChange={(e) => setTargetPlayerId(e.target.value)}
-                    className="w-full bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="">Selecionar participante...</option>
-                    {players.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nickname}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
-                  Descrição da ocorrência
+                <label className="block text-xs font-bold text-indigo-900 mb-1.5">
+                  Jogador denunciado
                 </label>
-                <textarea
-                  rows={3}
-                  value={reportReason}
-                  onChange={(e) => setReportReason(e.target.value)}
-                  placeholder="Explique brevemente o que aconteceu..."
-                  maxLength={200}
-                  className="w-full bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-indigo-950 focus:outline-none focus:border-indigo-500"
-                />
+                <select
+                  value={targetPlayerId}
+                  onChange={(e) => setTargetPlayerId(e.target.value)}
+                  className="w-full bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3 py-2 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">Selecionar jogador da sala...</option>
+                  {players.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nickname}
+                    </option>
+                  ))}
+                </select>
               </div>
-
-              {reportError && (
-                <div className="flex items-center gap-2 text-xs font-bold text-rose-800 bg-rose-100 border-2 border-rose-300 rounded-xl px-3.5 py-2.5">
-                  <ShieldAlert className="w-4 h-4 shrink-0" />
-                  <span>{reportError}</span>
-                </div>
-              )}
-
-              {reportSubmitted && (
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 bg-emerald-100 border-2 border-emerald-300 rounded-xl px-3.5 py-2.5">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>Registro de moderação enviado com sucesso!</span>
-                </div>
-              )}
 
               <div>
-                <button
-                  type="button"
-                  onClick={handleSubmitReport}
-                  className="game-btn-amber px-6 py-2.5 font-extrabold text-sm rounded-xl whitespace-nowrap cursor-pointer"
+                <label className="block text-xs font-bold text-indigo-900 mb-1.5">
+                  Motivo principal
+                </label>
+                <select
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  className="w-full bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3 py-2 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
                 >
-                  Enviar Denúncia
-                </button>
+                  <option value="Desenho inadequado">Desenho inadequado / ofensivo</option>
+                  <option value="Escreveu letras na tela">Escreveu a palavra no quadro</option>
+                  <option value="Ofensa ou spam no chat">Ofensa ou spam no chat</option>
+                  <option value="Apelido impróprio">Apelido impróprio</option>
+                </select>
               </div>
-            </form>
-          )}
-        </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-indigo-900 mb-1.5">
+                Observações adicionais (opcional)
+              </label>
+              <textarea
+                rows={3}
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+                maxLength={250}
+                placeholder="Descreva brevemente o ocorrido..."
+                className="w-full bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3 py-2 text-sm text-indigo-950 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              {reportStatus === 'done' ? (
+                <div className="flex items-center gap-2 text-emerald-700 text-xs font-bold">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Denúncia registrada com sucesso!
+                </div>
+              ) : (
+                <span className="text-xs text-indigo-500">
+                  O anfitrião também pode remover jogadores diretamente no Lobby.
+                </span>
+              )}
+
+              <button
+                type="submit"
+                disabled={reportStatus === 'submitting'}
+                className="party-btn-coral px-5 py-2.5 rounded-xl font-bold text-xs cursor-pointer"
+              >
+                {reportStatus === 'submitting' ? 'Enviando...' : 'Enviar Denúncia'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
