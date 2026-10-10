@@ -87,22 +87,22 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-indigo-950/75 backdrop-blur-xs flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-[#202435]/40 backdrop-blur-xs flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-catalog-title"
     >
-      <div className="party-card rounded-3xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+      <div className="party-card rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-indigo-100 bg-indigo-50/60">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E8F0] bg-[#F5F6FA]">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setActiveTab('catalog')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                 activeTab === 'catalog'
-                  ? 'bg-indigo-600 text-white shadow-[0_2px_0_#1e1b4b]'
-                  : 'text-indigo-700 hover:bg-indigo-100'
+                  ? 'bg-[#FF9F1C] text-[#202435] shadow-xs'
+                  : 'text-[#687086] hover:text-[#202435] hover:bg-white'
               }`}
             >
               Catálogo de Temas e Palavras ({words.length})
@@ -112,8 +112,8 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
               onClick={() => setActiveTab('report')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'report'
-                  ? 'bg-rose-500 text-white shadow-[0_2px_0_#881337]'
-                  : 'text-indigo-700 hover:bg-indigo-100'
+                  ? 'bg-[#E55353] text-white shadow-xs'
+                  : 'text-[#687086] hover:text-[#202435] hover:bg-white'
               }`}
             >
               <ShieldAlert className="w-3.5 h-3.5" />
@@ -123,7 +123,7 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-indigo-500 hover:text-indigo-950 hover:bg-indigo-100 cursor-pointer"
+            className="p-1.5 rounded-xl text-[#687086] hover:text-[#202435] hover:bg-white cursor-pointer"
             aria-label="Fechar janela"
           >
             <X className="w-5 h-5" />
@@ -132,25 +132,25 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
 
         {/* Body */}
         {activeTab === 'catalog' ? (
-          <div className="p-6 flex-1 overflow-y-auto flex flex-col gap-4">
+          <div className="p-6 flex-1 overflow-y-auto flex flex-col gap-4 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 id="modal-catalog-title" className="text-lg font-bold text-indigo-950 font-display">
+                <h2 id="modal-catalog-title" className="text-lg font-bold text-[#202435] font-display">
                   Banco de Palavras em Português
                 </h2>
-                <p className="text-xs text-indigo-600">
+                <p className="text-xs text-[#687086]">
                   Explore os temas que podem ser sorteados nas rodadas do SENAI Phone.
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-indigo-50 border-2 border-indigo-200 rounded-xl px-2.5 py-1.5">
-                  <Filter className="w-3.5 h-3.5 text-indigo-600" />
+                <div className="flex items-center gap-1.5 bg-[#F5F6FA] border border-[#E5E8F0] rounded-xl px-2.5 py-1.5">
+                  <Filter className="w-3.5 h-3.5 text-[#687086]" />
                   <select
                     value={selectedTheme}
                     onChange={(e) => setSelectedTheme(e.target.value)}
                     aria-label="Filtrar por tema"
-                    className="bg-transparent text-xs text-indigo-950 font-bold focus:outline-none"
+                    className="bg-transparent text-xs text-[#202435] font-semibold focus:outline-none"
                   >
                     <option value="all">Todos os Temas ({THEMES_CATALOG.length})</option>
                     {THEMES_CATALOG.map((t) => (
@@ -165,7 +165,7 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
                   value={selectedDifficulty}
                   onChange={(e) => setSelectedDifficulty(e.target.value)}
                   aria-label="Filtrar por dificuldade"
-                  className="bg-indigo-50 border-2 border-indigo-200 rounded-xl px-2.5 py-1.5 text-xs text-indigo-950 font-bold focus:outline-none"
+                  className="bg-[#F5F6FA] border border-[#E5E8F0] rounded-xl px-2.5 py-1.5 text-xs text-[#202435] font-semibold focus:outline-none"
                 >
                   <option value="all">Fácil + Médio</option>
                   <option value="easy">Apenas Fácil</option>
@@ -175,7 +175,7 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
             </div>
 
             {loading ? (
-              <div className="py-12 text-center text-sm font-bold text-indigo-600">
+              <div className="py-12 text-center text-sm font-semibold text-[#687086]">
                 Carregando catálogo...
               </div>
             ) : (
@@ -183,22 +183,22 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
                 {words.map((item) => (
                   <div
                     key={item.id}
-                    className="bg-indigo-50/70 border-2 border-indigo-100 rounded-2xl p-3 flex flex-col justify-between gap-1.5"
+                    className="bg-[#F5F6FA] border border-[#E5E8F0] rounded-xl p-3 flex flex-col justify-between gap-1.5"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-bold text-sm text-indigo-950">{item.word}</span>
+                      <span className="font-bold text-sm text-[#202435]">{item.word}</span>
                       <span
-                        className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-lg ${
+                        className={`text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md ${
                           item.difficulty === 'easy'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-amber-100 text-amber-800'
+                            ? 'bg-[#E8F8F2] text-[#11845E]'
+                            : 'bg-[#FFF6E5] text-[#B86800]'
                         }`}
                       >
                         {item.difficulty === 'easy' ? 'Fácil' : 'Médio'}
                       </span>
                     </div>
-                    <div className="text-[11px] font-bold text-indigo-600">{item.themeName}</div>
-                    <div className="text-[11px] text-indigo-800 leading-snug">
+                    <div className="text-[11px] font-semibold text-[#687086]">{item.themeName}</div>
+                    <div className="text-[11px] text-[#202435] leading-snug">
                       Dica: {item.hint1}
                     </div>
                   </div>
@@ -207,25 +207,25 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
             )}
           </div>
         ) : (
-          <form onSubmit={handleReportSubmit} className="p-6 flex flex-col gap-4">
+          <form onSubmit={handleReportSubmit} className="p-6 flex flex-col gap-4 bg-white">
             <div>
-              <h2 className="text-lg font-bold text-indigo-950 font-display">
+              <h2 className="text-lg font-bold text-[#202435] font-display">
                 Reportar Conduta ou Desenho Inadequado
               </h2>
-              <p className="text-xs text-indigo-600">
+              <p className="text-xs text-[#687086]">
                 Ajude a manter o ambiente divertido e respeitoso para todos na sala.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-indigo-900 mb-1.5">
+                <label className="block text-xs font-semibold text-[#202435] mb-1.5">
                   Jogador denunciado
                 </label>
                 <select
                   value={targetPlayerId}
                   onChange={(e) => setTargetPlayerId(e.target.value)}
-                  className="w-full bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3 py-2 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
+                  className="w-full senaiphone-input rounded-xl px-3 py-2 text-sm font-semibold"
                 >
                   <option value="">Selecionar jogador da sala...</option>
                   {players.map((p) => (
@@ -237,13 +237,13 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-indigo-900 mb-1.5">
+                <label className="block text-xs font-semibold text-[#202435] mb-1.5">
                   Motivo principal
                 </label>
                 <select
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  className="w-full bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3 py-2 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-500"
+                  className="w-full senaiphone-input rounded-xl px-3 py-2 text-sm font-semibold"
                 >
                   <option value="Desenho inadequado">Desenho inadequado / ofensivo</option>
                   <option value="Escreveu letras na tela">Escreveu a palavra no quadro</option>
@@ -254,7 +254,7 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-indigo-900 mb-1.5">
+              <label className="block text-xs font-semibold text-[#202435] mb-1.5">
                 Observações adicionais (opcional)
               </label>
               <textarea
@@ -263,18 +263,18 @@ export const CatalogModerationModal: React.FC<CatalogModerationModalProps> = ({
                 onChange={(e) => setDetails(e.target.value)}
                 maxLength={250}
                 placeholder="Descreva brevemente o ocorrido..."
-                className="w-full bg-indigo-50 border-2 border-indigo-200 rounded-xl px-3 py-2 text-sm text-indigo-950 focus:outline-none focus:border-indigo-500"
+                className="w-full senaiphone-input rounded-xl px-3 py-2 text-sm"
               />
             </div>
 
             <div className="flex items-center justify-between pt-2">
               {reportStatus === 'done' ? (
-                <div className="flex items-center gap-2 text-emerald-700 text-xs font-bold">
+                <div className="flex items-center gap-2 text-[#16A879] text-xs font-bold">
                   <CheckCircle2 className="w-4 h-4" />
                   Denúncia registrada com sucesso!
                 </div>
               ) : (
-                <span className="text-xs text-indigo-500">
+                <span className="text-xs text-[#687086]">
                   O anfitrião também pode remover jogadores diretamente no Lobby.
                 </span>
               )}

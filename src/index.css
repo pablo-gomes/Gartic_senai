@@ -5,18 +5,23 @@
     --font-display: 'Bricolage Grotesque', system-ui, -apple-system, sans-serif;
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
+
+    --bg-main: #F7F8FC;
+    --bg-surface: #FFFFFF;
+    --bg-input: #F5F6FA;
+    --color-primary: #FF9F1C;
+    --color-accent: #FFBF3F;
+    --text-primary: #202435;
+    --text-secondary: #687086;
+    --border-subtle: #E5E8F0;
+    --color-success: #16A879;
+    --color-error: #E55353;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #0B0E1E;
-    background-image:
-      radial-gradient(circle at 18% 12%, rgba(99, 102, 241, 0.22), transparent 40%),
-      radial-gradient(circle at 82% 16%, rgba(168, 85, 247, 0.18), transparent 38%),
-      radial-gradient(circle at 50% 92%, rgba(245, 158, 11, 0.12), transparent 42%),
-      radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-    background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px;
-    color: #F1F5F9;
+    background-color: #F7F8FC;
+    color: #202435;
     overflow-x: hidden;
     min-height: 100vh;
   }
@@ -31,134 +36,165 @@
   }
 }
 
-/* Modern Gaming Party Panel Surfaces */
+/* Seamless Drawing Game Vector Doodle Pattern Overlay */
+.senaiphone-doodle-pattern {
+  background-image:
+    radial-gradient(circle at 12% 14%, rgba(255, 159, 28, 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 88% 18%, rgba(22, 168, 121, 0.09) 0%, transparent 40%),
+    radial-gradient(circle at 50% 90%, rgba(255, 191, 63, 0.11) 0%, transparent 45%),
+    url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg stroke='%23202435' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' opacity='0.055'%3E%3Cpath d='M22 28l10-10 5 5-10 10-6 1 1-6z'/%3E%3Ccircle cx='88' cy='26' r='7'/%3E%3Cpath d='M82 82l12-4-4 12-8-8z'/%3E%3Cpath d='M26 86c4-5 11-5 15 0 3 4 1 9-4 9-3 0-5-2-5-4'/%3E%3Cpath d='M60 52l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5z'/%3E%3Crect x='52' y='14' width='10' height='10' rx='2' transform='rotate(15 57 19)'/%3E%3Cpath d='M14 56h12M20 50v12'/%3E%3Cpath d='M96 56c3 0 5 2 5 5s-2 5-5 5-5-2-5-5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background-size: 100% 100%, 100% 100%, 100% 100%, 120px 120px;
+}
+
+/* Light Mode Surface Cards */
+.party-card,
 .game-panel {
-  background: linear-gradient(180deg, rgba(20, 26, 52, 0.88) 0%, rgba(12, 16, 36, 0.94) 100%);
-  border: 1px solid rgba(99, 102, 241, 0.22);
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid #E5E8F0;
   box-shadow:
-    0 20px 40px -12px rgba(0, 0, 0, 0.65),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  color: #F8FAFC;
+    0 12px 32px -8px rgba(32, 36, 53, 0.08),
+    0 2px 6px -1px rgba(32, 36, 53, 0.04);
+  color: #202435;
 }
 
 .game-panel-soft {
-  background: rgba(24, 31, 62, 0.65);
-  border: 1px solid rgba(129, 140, 248, 0.18);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: #F1F5F9;
+  background-color: #F5F6FA;
+  border: 1px solid #E5E8F0;
+  color: #202435;
 }
 
-/* Tactile Modern Gaming Buttons */
-.game-btn-amber {
-  background: linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%);
-  color: #0F172A;
-  border: 1px solid rgba(254, 240, 138, 0.6);
+/* Light Mode Input Field */
+.senaiphone-input {
+  background-color: #F5F6FA;
+  border: 1px solid #E5E8F0;
+  color: #202435;
+  transition: all 150ms ease;
+}
+.senaiphone-input::placeholder {
+  color: #8E96AA;
+}
+.senaiphone-input:hover:not(:disabled) {
+  border-color: #D0D5E2;
+}
+.senaiphone-input:focus {
+  background-color: #FFFFFF;
+  border-color: #FF9F1C;
+  box-shadow: 0 0 0 3px rgba(255, 159, 28, 0.16);
+  outline: none;
+}
+
+/* Primary Orange Action Button (#FF9F1C / #FFBF3F) */
+.party-btn-yellow,
+.game-btn-amber,
+.party-btn-primary {
+  background: linear-gradient(180deg, #FFAD33 0%, #FF9F1C 100%);
+  color: #202435;
+  border: 1px solid #F08C00;
   box-shadow:
-    0 4px 16px -2px rgba(245, 158, 11, 0.45),
+    0 3px 10px rgba(255, 159, 28, 0.25),
     0 2px 0 #D97706;
   transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.game-btn-amber:hover:not(:disabled) {
-  filter: brightness(1.08);
+.party-btn-yellow:hover:not(:disabled),
+.game-btn-amber:hover:not(:disabled),
+.party-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #FFBF3F 0%, #FF9F1C 100%);
   transform: translateY(-1px);
   box-shadow:
-    0 6px 20px -2px rgba(245, 158, 11, 0.55),
+    0 6px 16px rgba(255, 159, 28, 0.32),
     0 2px 0 #D97706;
 }
-.game-btn-amber:active:not(:disabled) {
+.party-btn-yellow:active:not(:disabled),
+.game-btn-amber:active:not(:disabled),
+.party-btn-primary:active:not(:disabled) {
   transform: translateY(1px);
-  box-shadow:
-    0 2px 8px -2px rgba(245, 158, 11, 0.35),
-    0 0 0 #D97706;
+  box-shadow: 0 1px 4px rgba(255, 159, 28, 0.2);
 }
 
+/* Positive Green Action Button (#16A879) */
+.party-btn-emerald,
 .game-btn-emerald {
-  background: linear-gradient(180deg, #34D399 0%, #10B981 100%);
-  color: #022C22;
-  border: 1px solid rgba(167, 243, 208, 0.6);
+  background: linear-gradient(180deg, #1BB885 0%, #16A879 100%);
+  color: #FFFFFF;
+  border: 1px solid #128C65;
   box-shadow:
-    0 4px 16px -2px rgba(16, 185, 129, 0.45),
-    0 2px 0 #059669;
+    0 3px 10px rgba(22, 168, 121, 0.24),
+    0 2px 0 #0F7655;
   transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+.party-btn-emerald:hover:not(:disabled),
 .game-btn-emerald:hover:not(:disabled) {
-  filter: brightness(1.08);
+  filter: brightness(1.04);
   transform: translateY(-1px);
   box-shadow:
-    0 6px 20px -2px rgba(16, 185, 129, 0.55),
-    0 2px 0 #059669;
+    0 6px 16px rgba(22, 168, 121, 0.3),
+    0 2px 0 #0F7655;
 }
+.party-btn-emerald:active:not(:disabled),
 .game-btn-emerald:active:not(:disabled) {
   transform: translateY(1px);
-  box-shadow:
-    0 2px 8px -2px rgba(16, 185, 129, 0.35),
-    0 0 0 #059669;
+  box-shadow: 0 1px 4px rgba(22, 168, 121, 0.2);
 }
 
-.game-btn-violet {
-  background: linear-gradient(180deg, #818CF8 0%, #6366F1 100%);
-  color: #FFFFFF;
-  border: 1px solid rgba(199, 210, 254, 0.5);
-  box-shadow:
-    0 4px 16px -2px rgba(99, 102, 241, 0.45),
-    0 2px 0 #4338CA;
-  transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.game-btn-violet:hover:not(:disabled) {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-  box-shadow:
-    0 6px 20px -2px rgba(99, 102, 241, 0.55),
-    0 2px 0 #4338CA;
-}
-.game-btn-violet:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow:
-    0 2px 8px -2px rgba(99, 102, 241, 0.35),
-    0 0 0 #4338CA;
-}
-
+/* Error / Danger Button (#E55353) */
+.party-btn-coral,
 .game-btn-coral {
-  background: linear-gradient(180deg, #FB7185 0%, #E11D48 100%);
+  background: linear-gradient(180deg, #EB6565 0%, #E55353 100%);
   color: #FFFFFF;
-  border: 1px solid rgba(254, 205, 211, 0.5);
+  border: 1px solid #CF3E3E;
   box-shadow:
-    0 4px 16px -2px rgba(225, 29, 72, 0.45),
-    0 2px 0 #BE123C;
+    0 3px 10px rgba(229, 83, 83, 0.24),
+    0 2px 0 #B83232;
   transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+.party-btn-coral:hover:not(:disabled),
 .game-btn-coral:hover:not(:disabled) {
-  filter: brightness(1.08);
+  filter: brightness(1.04);
   transform: translateY(-1px);
-  box-shadow:
-    0 6px 20px -2px rgba(225, 29, 72, 0.55),
-    0 2px 0 #BE123C;
 }
+.party-btn-coral:active:not(:disabled),
 .game-btn-coral:active:not(:disabled) {
   transform: translateY(1px);
-  box-shadow:
-    0 2px 8px -2px rgba(225, 29, 72, 0.35),
-    0 0 0 #BE123C;
 }
 
-/* Custom Sleek Scrollbar */
+/* Secondary Neutral Button */
+.btn-secondary-light {
+  background-color: #F5F6FA;
+  color: #202435;
+  border: 1px solid #E5E8F0;
+  transition: all 140ms ease;
+}
+.btn-secondary-light:hover:not(:disabled) {
+  background-color: #EBEEF5;
+  border-color: #D5DAE6;
+}
+
+/* Drawing Canvas Board Frame */
+.canvas-board-frame {
+  background-color: #FFFFFF;
+  border: 1.5px solid #E5E8F0;
+  box-shadow:
+    0 8px 24px -6px rgba(32, 36, 53, 0.07),
+    0 2px 6px -1px rgba(32, 36, 53, 0.04);
+}
+
+/* Custom Sleek Light Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.4);
+  background: #F5F6FA;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.35);
+  background: #D0D6E4;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(129, 140, 248, 0.6);
+  background: #AEB6C9;
 }
 
 @media (prefers-reduced-motion: reduce) {

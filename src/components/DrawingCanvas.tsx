@@ -1044,10 +1044,10 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       <div className="flex flex-col gap-2 w-full">
         {/* CLEAN, COMPACT STUDIO TOOLBAR FOR DRAWER */}
         {canInteract && (
-          <div className="bg-white border-2 border-indigo-200 rounded-2xl px-3 py-2 flex flex-col gap-2 shadow-sm">
+          <div className="bg-white border border-[#E5E8F0] rounded-2xl px-3.5 py-2.5 flex flex-col gap-2.5 shadow-[0_4px_16px_-4px_rgba(32,36,53,0.05)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               {/* Primary Tool Selector */}
-              <div className="flex items-center gap-1 bg-indigo-50 border border-indigo-200 p-1 rounded-xl">
+              <div className="flex items-center gap-1 bg-[#F5F6FA] border border-[#E5E8F0] p-1 rounded-xl">
                 <button
                   type="button"
                   onClick={() => {
@@ -1056,8 +1056,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     tool === 'brush'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-indigo-900 hover:bg-indigo-100'
+                      ? 'bg-[#FF9F1C] text-[#202435] shadow-xs'
+                      : 'text-[#687086] hover:text-[#202435] hover:bg-white'
                   }`}
                 >
                   <Brush className="w-3.5 h-3.5" />
@@ -1069,8 +1069,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                   onClick={() => setTool('shape')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     tool === 'shape'
-                      ? 'bg-amber-400 text-indigo-950 shadow-xs'
-                      : 'text-indigo-900 hover:bg-indigo-100'
+                      ? 'bg-[#FF9F1C] text-[#202435] shadow-xs'
+                      : 'text-[#687086] hover:text-[#202435] hover:bg-white'
                   }`}
                 >
                   <Square className="w-3.5 h-3.5" />
@@ -1085,8 +1085,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     tool === 'eraser'
-                      ? 'bg-rose-500 text-white shadow-xs'
-                      : 'text-indigo-900 hover:bg-indigo-100'
+                      ? 'bg-[#202435] text-white shadow-xs'
+                      : 'text-[#687086] hover:text-[#202435] hover:bg-white'
                   }`}
                 >
                   <Eraser className="w-3.5 h-3.5" />
@@ -1125,15 +1125,15 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                       title={swatch.name}
                       className={`relative w-6 h-6 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
                         isSelected
-                          ? 'border-indigo-950 scale-115 ring-2 ring-amber-400 z-10'
-                          : 'border-indigo-200 hover:scale-110'
+                          ? 'border-[#202435] scale-115 ring-2 ring-[#FF9F1C] z-10'
+                          : 'border-[#E5E8F0] hover:scale-110'
                       }`}
                       style={{ backgroundColor: swatch.hex }}
                     >
                       {isSelected && (
                         <Check
                           className={`w-3.5 h-3.5 stroke-[3] ${
-                            swatch.hex === '#FACC15' ? 'text-indigo-950' : 'text-white'
+                            swatch.hex === '#FACC15' ? 'text-[#202435]' : 'text-white'
                           }`}
                         />
                       )}
@@ -1145,8 +1145,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                   onClick={() => setHighContrast((prev) => !prev)}
                   className={`p-1.5 rounded-lg text-xs border transition-colors cursor-pointer ${
                     highContrast
-                      ? 'bg-indigo-600 border-indigo-950 text-white'
-                      : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:text-indigo-950'
+                      ? 'bg-[#202435] border-[#202435] text-white'
+                      : 'bg-[#F5F6FA] border-[#E5E8F0] text-[#687086] hover:text-[#202435]'
                   }`}
                   title="Alternar alto contraste"
                 >
@@ -1157,7 +1157,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
               {/* Stroke Width & Undo/Redo/Clear */}
               <div className="flex items-center gap-2">
                 <div
-                  className="flex items-center gap-1 bg-indigo-50 border border-indigo-200 p-1 rounded-xl"
+                  className="flex items-center gap-1 bg-[#F5F6FA] border border-[#E5E8F0] p-1 rounded-xl"
                   role="group"
                   aria-label="Espessura do traço"
                 >
@@ -1181,8 +1181,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                         }}
                         className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
                           active
-                            ? 'bg-indigo-600 text-white shadow-xs'
-                            : 'text-indigo-900 hover:bg-indigo-100'
+                            ? 'bg-[#FF9F1C] text-[#202435] shadow-xs'
+                            : 'text-[#687086] hover:text-[#202435] hover:bg-white'
                         }`}
                         title={`Espessura: ${bw.label}`}
                       >
@@ -1203,7 +1203,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                     type="button"
                     onClick={onUndo}
                     disabled={!hasStrokes}
-                    className="p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 disabled:opacity-40 disabled:pointer-events-none text-indigo-900 transition-colors cursor-pointer"
+                    className="p-2 rounded-lg bg-[#F5F6FA] hover:bg-[#EBEEF5] border border-[#E5E8F0] disabled:opacity-40 disabled:pointer-events-none text-[#202435] transition-colors cursor-pointer"
                     title="Desfazer (Ctrl+Z)"
                     aria-label="Desfazer"
                   >
@@ -1212,7 +1212,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                   <button
                     type="button"
                     onClick={onRedo}
-                    className="p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 transition-colors cursor-pointer"
+                    className="p-2 rounded-lg bg-[#F5F6FA] hover:bg-[#EBEEF5] border border-[#E5E8F0] text-[#202435] transition-colors cursor-pointer"
                     title="Refazer (Ctrl+Y)"
                     aria-label="Refazer"
                   >
@@ -1224,14 +1224,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                       type="button"
                       onClick={() => setConfirmClear(true)}
                       disabled={!hasStrokes}
-                      className="p-2 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 disabled:opacity-40 disabled:pointer-events-none text-rose-600 transition-colors cursor-pointer"
+                      className="p-2 rounded-lg bg-[#FDF2F2] hover:bg-[#FCE4E4] border border-[#E55353]/30 disabled:opacity-40 disabled:pointer-events-none text-[#E55353] transition-colors cursor-pointer"
                       title="Limpar todo o desenho"
                       aria-label="Limpar desenho"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   ) : (
-                    <div className="flex items-center gap-1 bg-rose-50 border border-rose-300 rounded-lg px-2 py-1">
+                    <div className="flex items-center gap-1 bg-[#FDF2F2] border border-[#E55353]/40 rounded-lg px-2 py-1">
                       <button
                         type="button"
                         onClick={() => {
@@ -1242,14 +1242,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                           redrawAllFromRef();
                           onClear();
                         }}
-                        className="px-2 py-0.5 rounded-md bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
+                        className="px-2 py-0.5 rounded-md bg-[#E55353] hover:bg-[#CF3E3E] text-white text-xs font-bold cursor-pointer"
                       >
                         Limpar
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmClear(false)}
-                        className="px-2 py-0.5 rounded-md bg-white text-indigo-900 text-xs font-bold cursor-pointer"
+                        className="px-2 py-0.5 rounded-md bg-white text-[#202435] border border-[#E5E8F0] text-xs font-bold cursor-pointer"
                       >
                         Não
                       </button>
@@ -1261,7 +1261,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
 
             {/* Secondary Bar: Geometric Shapes & Size/Rotation Controls */}
             {(tool === 'shape' || (activeShapeStroke && activeShapeStroke.shape)) && (
-              <div className="bg-amber-50/80 border border-amber-200 rounded-xl px-3 py-1.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="bg-[#F5F6FA] border border-[#E5E8F0] rounded-xl px-3 py-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1">
                   {SHAPE_OPTIONS.map((sh) => {
                     const isSelected = selectedShapeType === sh.id && tool === 'shape';
@@ -1288,8 +1288,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                         title={sh.label}
                         className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
                           isSelected
-                            ? 'bg-indigo-600 text-white border-indigo-950'
-                            : 'bg-white text-indigo-900 border-amber-200 hover:bg-amber-100'
+                            ? 'bg-[#FF9F1C] text-[#202435] border-[#F08C00]'
+                            : 'bg-white text-[#202435] border-[#E5E8F0] hover:bg-[#FFF6E5]'
                         }`}
                       >
                         {sh.icon}
@@ -1318,8 +1318,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                     }}
                     className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
                       (activeShapeStroke?.shape?.filled ?? shapeFilled)
-                        ? 'bg-emerald-500 text-white border-emerald-800'
-                        : 'bg-white text-indigo-900 border-amber-200 hover:bg-amber-100'
+                        ? 'bg-[#16A879] text-white border-[#128C65]'
+                        : 'bg-white text-[#202435] border-[#E5E8F0] hover:bg-[#FFF6E5]'
                     }`}
                   >
                     <PaintBucket className="w-3.5 h-3.5" />
@@ -1333,7 +1333,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                   <button
                     type="button"
                     onClick={() => handleInsertShapeCenter()}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-indigo-950 border border-indigo-950 font-bold text-xs cursor-pointer"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FF9F1C] hover:bg-[#FFBF3F] text-[#202435] border border-[#F08C00] font-bold text-xs cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Inserir</span>
@@ -1343,8 +1343,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 {activeShapeStroke && activeShapeStroke.shape && (
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-1.5">
-                      <RotateCw className="w-3.5 h-3.5 text-amber-700" />
-                      <span className="text-[11px] font-bold text-indigo-900">
+                      <RotateCw className="w-3.5 h-3.5 text-[#FF9F1C]" />
+                      <span className="text-[11px] font-bold text-[#202435]">
                         Girar ({Math.round(activeShapeStroke.shape.rotation ?? 0)}°)
                       </span>
                       <input
@@ -1365,8 +1365,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                             true
                           );
                         }}
-                        className="w-24 accent-amber-500 cursor-pointer h-1.5"
-                        title="Arraste para girar a forma em 360° ou use a alça amarela acima da forma"
+                        className="w-24 accent-[#FF9F1C] cursor-pointer h-1.5"
+                        title="Arraste para girar a forma em 360° ou use a alça acima da forma"
                       />
                       <button
                         type="button"
@@ -1384,7 +1384,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                             true
                           );
                         }}
-                        className="px-1.5 py-0.5 rounded bg-white border border-amber-300 hover:bg-amber-100 text-indigo-950 text-[10px] font-bold cursor-pointer"
+                        className="px-1.5 py-0.5 rounded bg-white border border-[#E5E8F0] hover:bg-[#FFF6E5] text-[#202435] text-[10px] font-bold cursor-pointer"
                         title="Girar +45°"
                       >
                         +45°
@@ -1392,7 +1392,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] font-bold text-indigo-900">Largura</span>
+                      <span className="text-[11px] font-bold text-[#202435]">Largura</span>
                       <input
                         type="range"
                         min={4}
@@ -1411,12 +1411,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                             true
                           );
                         }}
-                        className="w-16 accent-indigo-600 cursor-pointer h-1.5"
+                        className="w-16 accent-[#FF9F1C] cursor-pointer h-1.5"
                       />
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] font-bold text-indigo-900">Altura</span>
+                      <span className="text-[11px] font-bold text-[#202435]">Altura</span>
                       <input
                         type="range"
                         min={4}
@@ -1435,7 +1435,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                             true
                           );
                         }}
-                        className="w-16 accent-indigo-600 cursor-pointer h-1.5"
+                        className="w-16 accent-[#FF9F1C] cursor-pointer h-1.5"
                       />
                     </div>
 
@@ -1443,7 +1443,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                       type="button"
                       onClick={() => setActiveShapeId(null)}
                       title="Você também pode simplesmente clicar fora da forma para fixá-la"
-                      className="px-2 py-0.5 rounded bg-indigo-600 text-white text-[11px] font-bold cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-[#202435] hover:bg-[#2E344B] text-white text-[11px] font-bold cursor-pointer"
                     >
                       Fixar (ou clique fora)
                     </button>
@@ -1457,7 +1457,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         {/* LARGE, UNOBSTRUCTED DRAWING BOARD */}
         <div
           className={`relative w-full aspect-[960/560] canvas-board-frame rounded-2xl overflow-hidden transition-all ${
-            canInteract ? 'ring-3 ring-amber-400' : ''
+            canInteract ? 'ring-2 ring-[#FF9F1C]/60' : ''
           }`}
         >
           <canvas

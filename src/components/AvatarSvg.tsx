@@ -56,11 +56,12 @@ export interface AvatarSvgProps {
   size?: number;
   className?: string;
   bordered?: boolean;
+  mood?: 'happy' | 'excited' | 'curious';
 }
 
 /**
- * Modern High-Resolution Avatar component with circular badge styling,
- * vibrant accent glows, and smooth responsive scaling.
+ * Modern High-Resolution Avatar component preserving original character colors,
+ * with crisp circular framing for Light Mode UI.
  */
 export const AvatarSvg: React.FC<AvatarSvgProps> = ({
   avatarId,
@@ -77,9 +78,9 @@ export const AvatarSvg: React.FC<AvatarSvgProps> = ({
       style={{
         width: size,
         height: size,
-        boxShadow: bordered ? `0 0 0 2px ${meta.accent}80, 0 4px 12px ${meta.accent}30` : undefined,
+        boxShadow: bordered ? `0 0 0 2px ${meta.accent}55, 0 4px 10px rgba(32, 36, 53, 0.08)` : undefined,
       }}
-      className={`relative shrink-0 rounded-full select-none flex items-center justify-center overflow-hidden transition-all duration-200 ${className}`}
+      className={`relative shrink-0 rounded-full select-none flex items-center justify-center overflow-hidden transition-all duration-200 bg-[#F5F6FA] ${className}`}
       role="img"
       aria-label={meta.label}
     >
@@ -90,7 +91,7 @@ export const AvatarSvg: React.FC<AvatarSvgProps> = ({
         height={size}
         loading="lazy"
         draggable={false}
-        className="w-full h-full object-cover rounded-full pointer-events-none drop-shadow-sm select-none"
+        className="w-full h-full object-cover rounded-full pointer-events-none select-none"
       />
     </div>
   );
