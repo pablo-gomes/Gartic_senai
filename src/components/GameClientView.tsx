@@ -26,15 +26,14 @@ import {
   Medal,
 } from 'lucide-react';
 import {
-  PointNormalized,
+  DrawingBatchPayload,
   RevealedHint,
   RoomPublicState,
   RoomSettings,
-  ShapeGeometry,
   ThemeEntry,
 } from '../shared/types';
 import { AvatarSvg, AVATAR_LIST } from './AvatarSvg';
-import { DrawingCanvas } from './DrawingCanvas';
+import { DrawingCanvas, DrawingCanvasHandle } from './DrawingCanvas';
 import { ThemeIcon } from './ThemeIcon';
 import { soundManager } from '../utils/sound';
 
@@ -117,6 +116,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
   >([]);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const canvasHandleRef = useRef<DrawingCanvasHandle | null>(null);
   const currentJoinCodeRef = useRef<string | null>(null);
   const autoJoinedRef = useRef<string | null>(null);
 
@@ -131,6 +131,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
     let reconnectTimer: number | null = null;
     let pingTimer: number | null = null;
     let retryAttempt = 0;
+    const MAX_RECONNECT_ATTEMPTS = 8;
 
     const connect = () => {
       if (!isMounted) return;
@@ -165,6 +166,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 playerId,
                 nickname,
                 avatarId,
+                isReconnect: true,
               },
             })
           );
@@ -188,6 +190,15 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
             setTimeout(() => {
               if (isMounted) setErrorMsg('');
             }, 4000);
+          } else if (event === 'room:interrupted') {
+            currentJoinCodeRef.current = null;
+            setRoomState(null);
+            setPrivateWord(null);
+            setReconnecting(false);
+            setErrorMsg(
+              payload?.message ||
+                'A partida foi interrompida porque o servidor foi reiniciado.'
+            );
           } else if (event === 'room:joined_ack') {
             currentJoinCodeRef.current = payload.joinCode;
             if (onRoomJoined) onRoomJoined(payload.joinCode);
@@ -196,10 +207,13 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
             setRoomState(null);
             setPrivateWord(null);
             setErrorMsg(payload?.reason || 'Você foi removido da sala.');
-          } else if (event === 'room:state') {
+          } else if (event === 'room:state' || event === 'game:state-sync') {
             const incomingState = payload as RoomPublicState;
             if (incomingState.currentRound?.serverNow) {
               clockOffsetRef.current = incomingState.currentRound.serverNow - Date.now();
+            }
+            if (!incomingState.omitStrokes && Array.isArray(incomingState.strokes)) {
+              canvasHandleRef.current?.replaceStrokes(incomingState.strokes);
             }
             setRoomState((prev) => {
               const isSameRound = prev && prev.currentRound?.id === incomingState.currentRound?.id;
@@ -208,7 +222,6 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 setSelectedThemeCard(null);
                 setGuessText('');
               }
-              // Preserve client strokes when server omits strokes array for high-speed 32-player delta broadcasts
               if (incomingState.omitStrokes && prev) {
                 return {
                   ...incomingState,
@@ -217,6 +230,62 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               }
               return incomingState;
             });
+          } else if (event === 'room:player-joined') {
+            setRoomState((prev) => {
+              if (!prev || !payload?.player) return prev;
+              const incomingPlayer = payload.player;
+              const exists = prev.players.some((p) => p.id === incomingPlayer.id);
+              const nextPlayers = exists
+                ? prev.players.map((p) => (p.id === incomingPlayer.id ? incomingPlayer : p))
+                : [...prev.players, incomingPlayer];
+              const nextFeed = payload.feedMessage
+                ? [...prev.feed.slice(-34), payload.feedMessage]
+                : prev.feed;
+              return {
+                ...prev,
+                hostPlayerId: payload.hostPlayerId ?? prev.hostPlayerId,
+                players: nextPlayers,
+                currentRound: prev.currentRound
+                  ? {
+                      ...prev.currentRound,
+                      totalRounds: payload.totalRounds ?? prev.currentRound.totalRounds,
+                      eligibleGuessersCount:
+                        payload.eligibleGuessersCount ?? prev.currentRound.eligibleGuessersCount,
+                    }
+                  : null,
+                feed: nextFeed,
+              };
+            });
+          } else if (event === 'room:player-left') {
+            setRoomState((prev) => {
+              if (!prev || !payload?.playerId) return prev;
+              const nextPlayers = payload.explicitLeave
+                ? prev.players.filter((p) => p.id !== payload.playerId)
+                : prev.players.map((p) =>
+                    p.id === payload.playerId
+                      ? { ...p, connectionStatus: 'disconnected' as const }
+                      : p
+                  );
+              const nextFeed = payload.feedMessage
+                ? [...prev.feed.slice(-34), payload.feedMessage]
+                : prev.feed;
+              return {
+                ...prev,
+                hostPlayerId: payload.hostPlayerId ?? prev.hostPlayerId,
+                players: nextPlayers.map((p) => ({
+                  ...p,
+                  isHost: p.id === (payload.hostPlayerId ?? prev.hostPlayerId),
+                })),
+                currentRound: prev.currentRound
+                  ? {
+                      ...prev.currentRound,
+                      eligibleGuessersCount:
+                        payload.eligibleGuessersCount ?? prev.currentRound.eligibleGuessersCount,
+                    }
+                  : null,
+                feed: nextFeed,
+              };
+            });
           } else if (event === 'word:private') {
             setPrivateWord({
               roundId: payload.roundId,
@@ -224,67 +293,72 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               themeName: payload.themeName,
               hints: payload.hints || [],
             });
-          } else if (event === 'round:started') {
+          } else if (event === 'round:started' || event === 'game:round-start') {
             soundManager.playRoundStart();
             setPrivateGuessFeedback(null);
-          } else if (event === 'drawing:stroke') {
+            canvasHandleRef.current?.clearCanvas();
+          } else if (event === 'game:timer') {
+            if (payload?.serverNow) {
+              clockOffsetRef.current = payload.serverNow - Date.now();
+            }
+            if (typeof payload?.remainingSeconds === 'number') {
+              setRemainingSeconds(payload.remainingSeconds);
+            }
+          } else if (event === 'drawing:batch' || event === 'drawing:stroke') {
+            // Rule 2 & 9: Forward directly to Canvas 2D imperative handle — ZERO React re-renders!
+            canvasHandleRef.current?.applyBatch(payload as DrawingBatchPayload);
+          } else if (event === 'drawing:clear') {
+            canvasHandleRef.current?.clearCanvas();
+          } else if (event === 'drawing:state') {
+            canvasHandleRef.current?.replaceStrokes(payload.strokes || []);
+          } else if (event === 'chat:message') {
+            if (payload?.message) {
+              setRoomState((prev) => {
+                if (!prev) return prev;
+                if (prev.feed.some((m) => m.id === payload.message.id)) return prev;
+                return {
+                  ...prev,
+                  feed: [...prev.feed.slice(-34), payload.message],
+                };
+              });
+            }
+          } else if (event === 'game:correct-answer' || event === 'guess:correct') {
             setRoomState((prev) => {
-              if (!prev || prev.currentRound?.id !== payload.roundId) return prev;
-              const existingIdx = prev.strokes.findIndex((s) => s.id === payload.strokeId);
-              const nextStrokes = [...prev.strokes];
-
-              if (payload.tool === 'shape' && payload.shape) {
-                if (existingIdx === -1) {
-                  nextStrokes.push({
-                    id: payload.strokeId,
-                    roundId: payload.roundId,
-                    playerId: payload.playerId,
-                    tool: 'shape',
-                    color: payload.color,
-                    width: payload.width,
-                    points: [],
-                    shape: payload.shape,
-                    sequence: payload.sequence,
-                    createdAt: Date.now(),
-                  });
-                } else {
-                  nextStrokes[existingIdx] = {
-                    ...nextStrokes[existingIdx],
-                    color: payload.color,
-                    width: payload.width,
-                    shape: payload.shape,
-                    sequence: Math.max(nextStrokes[existingIdx].sequence, payload.sequence),
+              if (!prev || !prev.currentRound || prev.currentRound.id !== payload.roundId) {
+                return prev;
+              }
+              const nextPlayers = prev.players.map((p) => {
+                if (p.id === payload.playerId) {
+                  return {
+                    ...p,
+                    hasGuessedThisRound: true,
+                    guessOrder: payload.order,
+                    roundPointsEarned: payload.pointsAwarded,
+                    score: payload.playerTotalScore ?? p.score,
+                    totalCorrectGuesses: p.totalCorrectGuesses + 1,
                   };
                 }
-                return { ...prev, strokes: nextStrokes };
-              }
+                return p;
+              });
+              const nextFeed =
+                payload.feedMessage && !prev.feed.some((m) => m.id === payload.feedMessage.id)
+                  ? [...prev.feed.slice(-34), payload.feedMessage]
+                  : prev.feed;
 
-              if (existingIdx === -1) {
-                nextStrokes.push({
-                  id: payload.strokeId,
-                  roundId: payload.roundId,
-                  playerId: payload.playerId,
-                  tool: payload.tool,
-                  color: payload.color,
-                  width: payload.width,
-                  points: payload.points,
-                  sequence: payload.sequence,
-                  createdAt: Date.now(),
-                });
-              } else {
-                const updated = {
-                  ...nextStrokes[existingIdx],
-                  points: [...nextStrokes[existingIdx].points, ...payload.points],
-                  sequence: Math.max(nextStrokes[existingIdx].sequence, payload.sequence),
-                };
-                nextStrokes[existingIdx] = updated;
-              }
-              return { ...prev, strokes: nextStrokes };
-            });
-          } else if (event === 'drawing:state') {
-            setRoomState((prev) => {
-              if (!prev || prev.currentRound?.id !== payload.roundId) return prev;
-              return { ...prev, strokes: payload.strokes || [] };
+              return {
+                ...prev,
+                players: nextPlayers,
+                currentRound: {
+                  ...prev.currentRound,
+                  correctGuessPlayerIds:
+                    payload.correctGuessPlayerIds ?? prev.currentRound.correctGuessPlayerIds,
+                  correctGuessesOrder:
+                    payload.correctGuessesOrder ?? prev.currentRound.correctGuessesOrder,
+                  eligibleGuessersCount:
+                    payload.eligibleGuessersCount ?? prev.currentRound.eligibleGuessersCount,
+                },
+                feed: nextFeed,
+              };
             });
           } else if (event === 'guess:feedback') {
             setPrivateGuessFeedback({
@@ -296,7 +370,37 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
             }
           } else if (event === 'hint:revealed') {
             soundManager.playHintRevealed();
-          } else if (event === 'round:ended') {
+            setRoomState((prev) => {
+              if (!prev || !prev.currentRound || prev.currentRound.id !== payload?.roundId) {
+                return prev;
+              }
+              const exists = prev.currentRound.revealedHints.some(
+                (h) => h.index === payload.hint?.index
+              );
+              const nextHints =
+                payload.hint && !exists
+                  ? [...prev.currentRound.revealedHints, payload.hint]
+                  : prev.currentRound.revealedHints;
+              const nextFeed =
+                payload.feedMessage && !prev.feed.some((m) => m.id === payload.feedMessage.id)
+                  ? [...prev.feed.slice(-34), payload.feedMessage]
+                  : prev.feed;
+              return {
+                ...prev,
+                currentRound: {
+                  ...prev.currentRound,
+                  hintsUsed: payload.hintsUsed ?? prev.currentRound.hintsUsed,
+                  lastHintAt: payload.lastHintAt ?? prev.currentRound.lastHintAt,
+                  wordMask: payload.wordMask ?? prev.currentRound.wordMask,
+                  wordLetterCount: payload.wordLetterCount ?? prev.currentRound.wordLetterCount,
+                  unrevealedLettersCount:
+                    payload.unrevealedLettersCount ?? prev.currentRound.unrevealedLettersCount,
+                  revealedHints: nextHints,
+                },
+                feed: nextFeed,
+              };
+            });
+          } else if (event === 'round:ended' || event === 'game:round-end') {
             soundManager.playRoundEnd();
           }
         } catch {
@@ -311,10 +415,19 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           pingTimer = null;
         }
         setWsConnected(false);
+
+        if (retryAttempt >= MAX_RECONNECT_ATTEMPTS) {
+          setReconnecting(false);
+          setErrorMsg(
+            'Conexão perdida com o servidor após várias tentativas. Verifique sua rede ou recarregue a página.'
+          );
+          return;
+        }
+
         if (currentJoinCodeRef.current) {
           setReconnecting(true);
         }
-        const delay = Math.min(4000, 900 + retryAttempt * 500 + Math.floor(Math.random() * 400));
+        const delay = Math.min(10000, 1000 * Math.pow(1.6, retryAttempt) + Math.floor(Math.random() * 400));
         retryAttempt += 1;
         reconnectTimer = window.setTimeout(connect, delay);
       };
@@ -322,6 +435,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
 
     const handleVisibilityOrOnline = () => {
       if (document.visibilityState === 'visible') {
+        retryAttempt = 0;
         if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
           if (reconnectTimer) clearTimeout(reconnectTimer);
           connect();
@@ -406,72 +520,12 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
     return () => clearInterval(timerId);
   }, [roomState?.currentRound, roomState?.status]);
 
-  const handleEmitStrokeChunk = useCallback(
-    (chunk: {
-      strokeId: string;
-      tool: 'brush' | 'eraser' | 'shape';
-      color: string;
-      width: number;
-      points: PointNormalized[];
-      shape?: ShapeGeometry;
-      sequence: number;
-    }) => {
-      setRoomState((prev) => {
-        if (!prev || !prev.currentRound) return prev;
-        const idx = prev.strokes.findIndex((s) => s.id === chunk.strokeId);
-        const nextStrokes = [...prev.strokes];
-
-        if (chunk.tool === 'shape' && chunk.shape) {
-          if (idx === -1) {
-            nextStrokes.push({
-              id: chunk.strokeId,
-              roundId: prev.currentRound.id,
-              playerId,
-              tool: 'shape',
-              color: chunk.color,
-              width: chunk.width,
-              points: [],
-              shape: chunk.shape,
-              sequence: chunk.sequence,
-              createdAt: Date.now(),
-            });
-          } else {
-            nextStrokes[idx] = {
-              ...nextStrokes[idx],
-              color: chunk.color,
-              width: chunk.width,
-              shape: chunk.shape,
-              sequence: chunk.sequence,
-            };
-          }
-          return { ...prev, strokes: nextStrokes };
-        }
-
-        if (idx === -1) {
-          nextStrokes.push({
-            id: chunk.strokeId,
-            roundId: prev.currentRound.id,
-            playerId,
-            tool: chunk.tool,
-            color: chunk.color,
-            width: chunk.width,
-            points: chunk.points,
-            sequence: chunk.sequence,
-            createdAt: Date.now(),
-          });
-        } else {
-          nextStrokes[idx] = {
-            ...nextStrokes[idx],
-            points: [...nextStrokes[idx].points, ...chunk.points],
-            sequence: chunk.sequence,
-          };
-        }
-        return { ...prev, strokes: nextStrokes };
-      });
-
-      sendWs('drawing:stroke', chunk);
+  // Rule 2 & 6: Emit compact batch directly over WebSocket without calling setRoomState!
+  const handleEmitBatch = useCallback(
+    (batch: DrawingBatchPayload) => {
+      sendWs('drawing:batch', batch as unknown as Record<string, unknown>);
     },
-    [playerId, sendWs]
+    [sendWs]
   );
 
   const handleCreateRoom = (e: React.FormEvent) => {
@@ -1549,10 +1603,12 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
             <div className="lg:col-span-8 flex flex-col gap-2.5">
               <DrawingCanvas
-                strokes={roomState.strokes}
+                ref={canvasHandleRef}
+                initialStrokes={roomState.strokes}
+                roundId={round.id}
                 isDrawer={isDrawer}
                 isDrawingPhase={roomState.status === 'DRAWING'}
-                onEmitStrokeChunk={handleEmitStrokeChunk}
+                onEmitBatch={handleEmitBatch}
                 onUndo={() => sendWs('drawing:undo')}
                 onRedo={() => sendWs('drawing:redo')}
                 onClear={() => sendWs('drawing:clear')}
@@ -1803,10 +1859,11 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 Arte Final de {round.drawerNickname}
               </span>
               <DrawingCanvas
-                strokes={roomState.strokes}
+                initialStrokes={roomState.strokes}
+                roundId={round.id}
                 isDrawer={false}
                 isDrawingPhase={false}
-                onEmitStrokeChunk={() => {}}
+                onEmitBatch={() => {}}
                 onUndo={() => {}}
                 onRedo={() => {}}
                 onClear={() => {}}

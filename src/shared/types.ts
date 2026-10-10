@@ -91,6 +91,21 @@ export interface ShapeGeometry {
   filled: boolean;
 }
 
+export type StrokePhase = 'start' | 'move' | 'end' | 'shape';
+
+export interface DrawingBatchPayload {
+  roundId?: string;
+  strokeId: string;
+  playerId?: string;
+  phase?: StrokePhase;
+  tool: 'brush' | 'eraser' | 'shape';
+  color: string;
+  width: number;
+  points: PointNormalized[];
+  shape?: ShapeGeometry;
+  sequence: number;
+}
+
 export interface DrawingStroke {
   id: string;
   roundId: string;
@@ -171,6 +186,7 @@ export interface RoomPublicState {
   strokes: DrawingStroke[];
   omitStrokes?: boolean;
   feed: SystemFeedMessage[];
+  serverBootId?: string;
 }
 
 export interface ModerationReport {

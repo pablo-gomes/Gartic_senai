@@ -1,13 +1,12 @@
 import express from 'express';
 import { createServer } from 'http';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
-import { createServer as createViteServer } from 'vite';
 import {
   DrawingStroke,
   ModerationReport,
   PlayerPublicState,
+  PointNormalized,
   RevealedHint,
   RoomPhase,
   RoomPublicState,
@@ -16,14 +15,31 @@ import {
   RoundGuessRecord,
   ShapeGeometry,
   ShapeType,
+  StrokePhase,
   SystemFeedMessage,
   ThemeEntry,
   WordEntry,
 } from './src/shared/types';
 import { THEMES_CATALOG, WORDS_CATALOG } from './src/shared/catalog';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ============================================================================
+// RESOURCE, SECURITY & RATE LIMITS (Sections 4, 5, 8, 9, 10, 11)
+// ============================================================================
+const SERVER_BOOT_ID = `boot_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+const MAX_PLAYERS_PER_ROOM = 32;
+const MAX_ACTIVE_ROOMS = 64;
+const MAX_WS_PAYLOAD_BYTES = 32 * 1024; // 32 KB max message size
+const MAX_POINTS_PER_BATCH = 64;
+const MAX_STROKES_PER_ROUND = 250;
+const MAX_TOTAL_POINTS_PER_ROUND = 6000;
+const MAX_CHAT_HISTORY = 35;
+const MAX_GUESS_LENGTH = 80;
+const MIN_GUESS_INTERVAL_MS = 400; // Per-player anti-spam cooldown
+const MAX_MESSAGES_PER_WINDOW = 7; // Max 7 chat/guess messages per 4s window
+const MESSAGE_WINDOW_MS = 4000;
+const MIN_DRAW_BATCH_INTERVAL_MS = 18; // Server rate limit for drawing batches
+const EMPTY_ROOM_TTL_MS = 60 * 1000; // Remove empty rooms after 60s
+const INACTIVE_ROOM_TTL_MS = 20 * 60 * 1000; // Remove inactive rooms after 20m
 
 interface ExtendedWebSocket extends WebSocket {
   isAlive?: boolean;
@@ -32,7 +48,10 @@ interface ExtendedWebSocket extends WebSocket {
 interface InternalPlayer extends PlayerPublicState {
   ws: ExtendedWebSocket | null;
   lastGuessAt: number;
-  lastStrokeSeq: number;
+  messageWindowStart: number;
+  messageCountInWindow: number;
+  lastDrawBatchAt: number;
+  lastStrokeSeqMap: Map<string, number>;
   disconnectTimer: NodeJS.Timeout | null;
 }
 
@@ -61,6 +80,7 @@ interface InternalRound {
   correctGuessesOrder: RoundGuessRecord[];
   eligibleGuessersCount: number;
   drawerPointsEarned: number;
+  totalPointsCount: number;
   endReason?: 'time_up' | 'all_guessed' | 'drawer_finished' | 'drawer_disconnected' | 'host_ended';
   ended: boolean;
 }
@@ -73,6 +93,8 @@ interface InternalRoom {
   previousStatusBeforePause?: RoomPhase;
   settings: RoomSettings;
   createdAt: number;
+  lastActivityAt: number;
+  emptySince: number | null;
   players: Map<string, InternalPlayer>;
   bannedPlayerIds: Set<string>;
   turnOrder: string[];
@@ -124,7 +146,7 @@ function generateId(prefix = 'id'): string {
 function sanitizeSettings(partial: Partial<RoomSettings>, current?: RoomSettings): RoomSettings {
   const base: RoomSettings = current ?? {
     roomName: 'Arena 32 Players',
-    maxPlayers: 32,
+    maxPlayers: MAX_PLAYERS_PER_ROOM,
     roundDuration: 60,
     roundsPerPlayer: 1,
     themeMode: 'drawer_chooses',
@@ -134,7 +156,7 @@ function sanitizeSettings(partial: Partial<RoomSettings>, current?: RoomSettings
     scoringMode: 'competitive',
     endWhenAllGuessed: true,
     allowEarlyFinish: true,
-    chatEnabled: false,
+    chatEnabled: true,
   };
 
   const validDurations: RoundDuration[] = [45, 60, 90, 120];
@@ -148,8 +170,8 @@ function sanitizeSettings(partial: Partial<RoomSettings>, current?: RoomSettings
       : base.roundsPerPlayer;
 
   const maxPlayers =
-    typeof partial.maxPlayers === 'number'
-      ? Math.max(2, Math.min(32, Math.round(partial.maxPlayers)))
+    typeof partial.maxPlayers === 'number' && Number.isFinite(partial.maxPlayers)
+      ? Math.max(2, Math.min(MAX_PLAYERS_PER_ROOM, Math.round(partial.maxPlayers)))
       : base.maxPlayers;
 
   const themeMode =
@@ -197,7 +219,7 @@ function addFeedMessage(
   type: SystemFeedMessage['type'],
   text: string,
   playerNickname?: string
-) {
+): SystemFeedMessage {
   const msg: SystemFeedMessage = {
     id: generateId('msg'),
     type,
@@ -206,9 +228,10 @@ function addFeedMessage(
     timestamp: Date.now(),
   };
   room.feed.push(msg);
-  if (room.feed.length > 45) {
+  if (room.feed.length > MAX_CHAT_HISTORY) {
     room.feed.shift();
   }
+  return msg;
 }
 
 function computeWordMaskState(round: InternalRound): {
@@ -237,8 +260,8 @@ function computeWordMaskState(round: InternalRound): {
   return { wordMask, wordLetterCount, unrevealedLettersCount };
 }
 
-function buildPublicState(room: InternalRoom, includeStrokes = true): RoomPublicState {
-  const players: PlayerPublicState[] = Array.from(room.players.values()).map((p) => ({
+function toPublicPlayer(room: InternalRoom, p: InternalPlayer): PlayerPublicState {
+  return {
     id: p.id,
     roomId: p.roomId,
     nickname: p.nickname,
@@ -252,7 +275,13 @@ function buildPublicState(room: InternalRoom, includeStrokes = true): RoomPublic
     roundPointsEarned: p.roundPointsEarned,
     totalCorrectGuesses: p.totalCorrectGuesses,
     timesDrawn: p.timesDrawn,
-  }));
+  };
+}
+
+function buildPublicState(room: InternalRoom, includeStrokes = true): RoomPublicState {
+  const players: PlayerPublicState[] = Array.from(room.players.values()).map((p) =>
+    toPublicPlayer(room, p)
+  );
 
   let currentRound: RoomPublicState['currentRound'] = null;
   if (room.currentRound) {
@@ -304,6 +333,7 @@ function buildPublicState(room: InternalRoom, includeStrokes = true): RoomPublic
     strokes: includeStrokes ? room.strokes : [],
     omitStrokes: !includeStrokes,
     feed: room.feed,
+    serverBootId: SERVER_BOOT_ID,
   };
 }
 
@@ -314,7 +344,10 @@ function sendToPlayer(player: InternalPlayer, event: string, payload: unknown) {
 }
 
 function sendFullStateToPlayer(room: InternalRoom, player: InternalPlayer) {
-  sendToPlayer(player, 'room:state', buildPublicState(room, true));
+  const fullState = buildPublicState(room, true);
+  sendToPlayer(player, 'room:state', fullState);
+  sendToPlayer(player, 'game:state-sync', fullState);
+
   if (
     room.currentRound &&
     room.currentRound.secretWord &&
@@ -331,9 +364,8 @@ function sendFullStateToPlayer(room: InternalRoom, player: InternalPlayer) {
 }
 
 /**
- * High-efficiency O(1)-serialization broadcast for up to 32 concurrent players.
- * By default omits the full strokes array during active rounds so guesses/hints/chat
- * never re-serialize or re-transmit megabytes of canvas data.
+ * O(1)-serialization broadcast for phase transitions.
+ * Never used for high-frequency drawing or chat events!
  */
 function broadcastRoomState(room: InternalRoom, includeStrokes = false) {
   const state = buildPublicState(room, includeStrokes);
@@ -382,7 +414,7 @@ function broadcastEvent(
     if (excludePlayerId && player.id === excludePlayerId) continue;
     const ws = player.ws;
     if (ws && ws.readyState === WebSocket.OPEN) {
-      if (skipIfBackpressured && ws.bufferedAmount > 512 * 1024) {
+      if (skipIfBackpressured && ws.bufferedAmount > 256 * 1024) {
         continue;
       }
       ws.send(serialized);
@@ -395,6 +427,20 @@ function clearPhaseTimer(room: InternalRoom) {
     clearTimeout(room.phaseTimer);
     room.phaseTimer = null;
   }
+}
+
+function cleanupRoomResources(room: InternalRoom) {
+  clearPhaseTimer(room);
+  for (const p of room.players.values()) {
+    if (p.disconnectTimer) {
+      clearTimeout(p.disconnectTimer);
+      p.disconnectTimer = null;
+    }
+    p.lastStrokeSeqMap.clear();
+  }
+  room.strokes = [];
+  room.redoStack = [];
+  room.feed = [];
 }
 
 function pickWordForTheme(room: InternalRoom, themeId: string): { word: WordEntry; resolvedTheme: ThemeEntry } {
@@ -430,8 +476,25 @@ function getEligibleGuessers(room: InternalRoom, drawerId: string): InternalPlay
   );
 }
 
+function checkMessageRateLimit(player: InternalPlayer, now: number): boolean {
+  if (now - player.lastGuessAt < MIN_GUESS_INTERVAL_MS) {
+    return false;
+  }
+  if (now - player.messageWindowStart > MESSAGE_WINDOW_MS) {
+    player.messageWindowStart = now;
+    player.messageCountInWindow = 0;
+  }
+  if (player.messageCountInWindow >= MAX_MESSAGES_PER_WINDOW) {
+    return false;
+  }
+  player.lastGuessAt = now;
+  player.messageCountInWindow += 1;
+  return true;
+}
+
 function startRoundSetup(room: InternalRoom) {
   clearPhaseTimer(room);
+  room.lastActivityAt = Date.now();
 
   const activeConnectedIds = Array.from(room.players.values())
     .filter((p) => p.connectionStatus === 'connected')
@@ -473,6 +536,7 @@ function startRoundSetup(room: InternalRoom) {
     p.hasGuessedThisRound = false;
     p.guessOrder = undefined;
     p.roundPointsEarned = 0;
+    p.lastStrokeSeqMap.clear();
   }
 
   room.strokes = [];
@@ -510,6 +574,7 @@ function startRoundSetup(room: InternalRoom) {
     correctGuessesOrder: [],
     eligibleGuessersCount: eligibleGuessers.length,
     drawerPointsEarned: 0,
+    totalPointsCount: 0,
     ended: false,
   };
 
@@ -538,7 +603,7 @@ function startRoundSetup(room: InternalRoom) {
         }
       }, 18000);
     }
-  }, 1000);
+  }, 600);
 }
 
 function applyThemeAndRevealWord(room: InternalRoom, themeId: string) {
@@ -561,7 +626,7 @@ function applyThemeAndRevealWord(room: InternalRoom, themeId: string) {
 
   const now = Date.now();
   round.startedAt = now;
-  round.endsAt = now + 3200;
+  round.endsAt = now + 2800;
 
   addFeedMessage(
     room,
@@ -574,7 +639,7 @@ function applyThemeAndRevealWord(room: InternalRoom, themeId: string) {
   room.phaseTimer = setTimeout(() => {
     if (!room.currentRound || room.currentRound.id !== round.id) return;
     startDrawingPhase(room);
-  }, 3200);
+  }, 2800);
 }
 
 function startDrawingPhase(room: InternalRoom) {
@@ -596,19 +661,29 @@ function startDrawingPhase(room: InternalRoom) {
   round.startedAt = now;
   round.endsAt = now + durationMs;
 
-  const { wordLetterCount } = computeWordMaskState(round);
+  const { wordMask, wordLetterCount } = computeWordMaskState(round);
   addFeedMessage(
     room,
     'system',
     `Valendo! A palavra tem ${wordLetterCount} letras no tema "${round.themeName}".`
   );
   broadcastRoomState(room, true);
-  broadcastEvent(room, 'round:started', {
+
+  const startPayload = {
     roundId: round.id,
+    roundNumber: round.roundNumber,
+    totalRounds: round.totalRounds,
+    drawerPlayerId: round.drawerPlayerId,
+    drawerNickname: round.drawerNickname,
     startedAt: round.startedAt,
     endsAt: round.endsAt,
+    serverNow: now,
     themeName: round.themeName,
-  });
+    wordMask,
+    wordLetterCount,
+  };
+  broadcastEvent(room, 'round:started', startPayload);
+  broadcastEvent(room, 'game:round-start', startPayload);
 
   room.phaseTimer = setTimeout(() => {
     if (room.currentRound && room.currentRound.id === round.id && room.status === 'DRAWING') {
@@ -668,21 +743,23 @@ function endRound(
 
   const now = Date.now();
   round.startedAt = now;
-  round.endsAt = now + 6500;
+  round.endsAt = now + 6000;
 
   broadcastRoomState(room, true);
-  broadcastEvent(room, 'round:ended', {
+  const endPayload = {
     roundId: round.id,
     revealedWord: secretText,
     endReason: reason,
     correctGuessesOrder: round.correctGuessesOrder,
     drawerPointsEarned: drawerPts,
-  });
+  };
+  broadcastEvent(room, 'round:ended', endPayload);
+  broadcastEvent(room, 'game:round-end', endPayload);
 
   room.phaseTimer = setTimeout(() => {
     if (!room.currentRound || room.currentRound.id !== round.id) return;
     advanceToNextRound(room);
-  }, 6500);
+  }, 6000);
 }
 
 function advanceToNextRound(room: InternalRoom) {
@@ -702,7 +779,7 @@ function advanceToNextRound(room: InternalRoom) {
 
   room.phaseTimer = setTimeout(() => {
     startRoundSetup(room);
-  }, 1400);
+  }, 1200);
 }
 
 function endGame(room: InternalRoom) {
@@ -722,19 +799,28 @@ async function startServer() {
   const app = express();
   const httpServer = createServer(app);
 
-  // Disable perMessageDeflate to eliminate zlib compression overhead when broadcasting to 32 players
+  // Disable perMessageDeflate to eliminate zlib CPU/RAM overhead when broadcasting to 32 players
   const wss = new WebSocketServer({
     server: httpServer,
     path: '/ws',
     perMessageDeflate: false,
-    maxPayload: 256 * 1024,
+    maxPayload: MAX_WS_PAYLOAD_BYTES,
   });
 
-  app.use(express.json());
+  app.use(express.json({ limit: '32kb' }));
 
-  // Render health check endpoint
+  // Render health check & diagnostics endpoint
   app.get('/healthz', (_req, res) => {
-    res.status(200).json({ status: 'ok', rooms: rooms.size, uptime: process.uptime() });
+    const mem = process.memoryUsage();
+    res.status(200).json({
+      status: 'ok',
+      serverBootId: SERVER_BOOT_ID,
+      rooms: rooms.size,
+      clients: wss.clients.size,
+      rssMb: Math.round((mem.rss / 1024 / 1024) * 10) / 10,
+      heapUsedMb: Math.round((mem.heapUsed / 1024 / 1024) * 10) / 10,
+      uptime: Math.round(process.uptime()),
+    });
   });
 
   app.get('/api/catalog', (_req, res) => {
@@ -781,6 +867,7 @@ async function startServer() {
       createdAt: Date.now(),
     };
     reports.push(report);
+    if (reports.length > 200) reports.shift();
     res.json({ ok: true, reportId: report.id });
   });
 
@@ -795,7 +882,7 @@ async function startServer() {
     res.json({ rooms: activeRooms });
   });
 
-  // Render & Cloud Proxy Keep-Alive Heartbeat (every 20s prevents 60s idle disconnect)
+  // 1. Render & Cloud Proxy Keep-Alive Heartbeat (every 20s prevents 55s idle disconnect)
   const heartbeatInterval = setInterval(() => {
     wss.clients.forEach((rawWs) => {
       const ws = rawWs as ExtendedWebSocket;
@@ -810,8 +897,63 @@ async function startServer() {
     });
   }, 20000);
 
+  // 2. Single Global Timer Sync & Inactive Room Garbage Collector (Sections 7 & 9)
+  let gcCounter = 0;
+  const globalTimerInterval = setInterval(() => {
+    const now = Date.now();
+    gcCounter += 1;
+
+    for (const [code, room] of rooms.entries()) {
+      // Emit lightweight game:timer once per second for active timed rounds
+      if (
+        room.currentRound &&
+        room.currentRound.endsAt &&
+        (room.status === 'DRAWING' || room.status === 'THEME_SELECTION' || room.status === 'WORD_REVEAL')
+      ) {
+        const remainingSeconds = Math.max(0, Math.ceil((room.currentRound.endsAt - now) / 1000));
+        broadcastEvent(
+          room,
+          'game:timer',
+          {
+            roundId: room.currentRound.id,
+            remainingSeconds,
+            endsAt: room.currentRound.endsAt,
+            serverNow: now,
+          },
+          undefined,
+          true
+        );
+      }
+
+      // Periodic garbage collection every 15 ticks (15s)
+      if (gcCounter % 15 === 0) {
+        const connectedCount = Array.from(room.players.values()).filter(
+          (p) => p.connectionStatus === 'connected'
+        ).length;
+
+        if (connectedCount === 0) {
+          if (!room.emptySince) {
+            room.emptySince = now;
+          } else if (now - room.emptySince >= EMPTY_ROOM_TTL_MS) {
+            cleanupRoomResources(room);
+            rooms.delete(code);
+            continue;
+          }
+        } else {
+          room.emptySince = null;
+        }
+
+        if (now - room.lastActivityAt >= INACTIVE_ROOM_TTL_MS) {
+          cleanupRoomResources(room);
+          rooms.delete(code);
+        }
+      }
+    }
+  }, 1000);
+
   wss.on('close', () => {
     clearInterval(heartbeatInterval);
+    clearInterval(globalTimerInterval);
   });
 
   wss.on('connection', (rawWs: WebSocket) => {
@@ -822,43 +964,88 @@ async function startServer() {
       ws.isAlive = true;
     });
 
+    ws.on('error', () => {
+      // Prevent unhandled socket error crashes
+    });
+
     let boundRoomId: string | null = null;
     let boundPlayerId: string | null = null;
 
-    const sendError = (message: string) => {
+    const sendError = (message: string, code?: string) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ event: 'error', payload: { message } }));
+        ws.send(JSON.stringify({ event: 'error', payload: { message, code } }));
       }
     };
 
-    ws.on('message', (rawBuffer) => {
+    ws.on('message', (rawBuffer, isBinary) => {
       ws.isAlive = true;
 
-      let parsed: { event?: string; payload?: any };
-      try {
-        parsed = JSON.parse(rawBuffer.toString());
-      } catch {
+      // Reject binary frames or oversized messages immediately (Section 11 & 12 Test F)
+      if (isBinary) {
+        sendError('Formato binário não suportado.', 'INVALID_FORMAT');
         return;
       }
 
-      const { event, payload = {} } = parsed;
+      const rawStr = rawBuffer.toString();
+      const byteLen = Buffer.byteLength(rawStr);
+      if (byteLen > MAX_WS_PAYLOAD_BYTES) {
+        sendError('Mensagem excede o tamanho máximo permitido.', 'PAYLOAD_TOO_LARGE');
+        return;
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(rawStr);
+      } catch {
+        sendError('Formato JSON inválido.', 'MALFORMED_JSON');
+        return;
+      }
+
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        sendError('Estrutura de mensagem inválida.', 'INVALID_PAYLOAD');
+        return;
+      }
+
+      const { event, payload: rawPayload } = parsed as { event?: unknown; payload?: unknown };
+      if (typeof event !== 'string' || event.length === 0 || event.length > 48) {
+        sendError('Evento inválido.', 'INVALID_EVENT');
+        return;
+      }
+
+      const payload: Record<string, any> =
+        rawPayload && typeof rawPayload === 'object' && !Array.isArray(rawPayload)
+          ? (rawPayload as Record<string, any>)
+          : {};
 
       // Lightweight client keep-alive ping
       if (event === 'ping') {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ event: 'pong', payload: { serverNow: Date.now() } }));
+          ws.send(
+            JSON.stringify({
+              event: 'pong',
+              payload: { serverNow: Date.now(), serverBootId: SERVER_BOOT_ID },
+            })
+          );
         }
         return;
       }
 
       // 1. CREATE ROOM
       if (event === 'room:create') {
+        if (rooms.size >= MAX_ACTIVE_ROOMS) {
+          sendError('Limite máximo de salas simultâneas atingido no servidor. Tente novamente em instantes.');
+          return;
+        }
+
         const rawNickname = sanitizeText(payload.nickname, 18);
         if (rawNickname.length < 2) {
           sendError('Seu apelido deve ter entre 2 e 18 caracteres.');
           return;
         }
-        const avatarId = typeof payload.avatarId === 'number' ? Math.max(0, Math.min(11, payload.avatarId)) : 0;
+        const avatarId =
+          typeof payload.avatarId === 'number' && Number.isFinite(payload.avatarId)
+            ? Math.max(0, Math.min(11, Math.floor(payload.avatarId)))
+            : 0;
         const playerId = sanitizeText(payload.playerId, 48) || generateId('plr');
 
         let joinCode = generateJoinCode();
@@ -866,6 +1053,7 @@ async function startServer() {
           joinCode = generateJoinCode();
         }
 
+        const now = Date.now();
         const settings = sanitizeSettings(payload.settings || {});
         const room: InternalRoom = {
           id: generateId('room'),
@@ -873,7 +1061,9 @@ async function startServer() {
           hostPlayerId: playerId,
           status: 'LOBBY',
           settings,
-          createdAt: Date.now(),
+          createdAt: now,
+          lastActivityAt: now,
+          emptySince: null,
           players: new Map(),
           bannedPlayerIds: new Set(),
           turnOrder: [],
@@ -893,7 +1083,7 @@ async function startServer() {
           avatarId,
           score: 0,
           connectionStatus: 'connected',
-          joinedAt: Date.now(),
+          joinedAt: now,
           isHost: true,
           hasGuessedThisRound: false,
           roundPointsEarned: 0,
@@ -901,7 +1091,10 @@ async function startServer() {
           timesDrawn: 0,
           ws,
           lastGuessAt: 0,
-          lastStrokeSeq: -1,
+          messageWindowStart: now,
+          messageCountInWindow: 0,
+          lastDrawBatchAt: 0,
+          lastStrokeSeqMap: new Map(),
           disconnectTimer: null,
         };
 
@@ -916,23 +1109,42 @@ async function startServer() {
           playerId,
           joinCode,
           roomId: room.id,
+          serverBootId: SERVER_BOOT_ID,
         });
         sendFullStateToPlayer(room, hostPlayer);
         return;
       }
 
-      // 2. JOIN ROOM
+      // 2. JOIN / RECONNECT ROOM
       if (event === 'room:join') {
         const joinCode = sanitizeText(payload.joinCode, 10).toUpperCase();
         const room = rooms.get(joinCode);
         if (!room) {
-          sendError('Sala não encontrada. Verifique o código de convite.');
+          if (payload.isReconnect) {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  event: 'room:interrupted',
+                  payload: {
+                    reason: 'server_restarted_or_expired',
+                    message:
+                      'A partida anterior foi encerrada ou o servidor reiniciou (dados em memória RAM não persistentes).',
+                  },
+                })
+              );
+            }
+          } else {
+            sendError('Sala não encontrada. Verifique o código de convite.', 'ROOM_NOT_FOUND');
+          }
           return;
         }
 
+        room.lastActivityAt = Date.now();
+        room.emptySince = null;
+
         const requestedPlayerId = sanitizeText(payload.playerId, 48) || generateId('plr');
         if (room.bannedPlayerIds.has(requestedPlayerId)) {
-          sendError('Você foi removido desta sala pelo anfitrião.');
+          sendError('Você foi removido desta sala pelo anfitrião.', 'BANNED');
           return;
         }
 
@@ -952,14 +1164,36 @@ async function startServer() {
           boundRoomId = joinCode;
           boundPlayerId = existingPlayer.id;
 
+          if (room.currentRound) {
+            room.currentRound.eligibleGuessersCount = getEligibleGuessers(
+              room,
+              room.currentRound.drawerPlayerId
+            ).length;
+          }
+
           sendToPlayer(existingPlayer, 'room:joined_ack', {
             playerId: existingPlayer.id,
             joinCode,
             roomId: room.id,
+            serverBootId: SERVER_BOOT_ID,
+            reconnected: true,
           });
-          // Send full state (including strokes) to the reconnecting player, and lightweight meta state to others
+          // Send full state (including compact stroke snapshot) ONLY to the reconnecting player
           sendFullStateToPlayer(room, existingPlayer);
-          broadcastRoomState(room, false);
+
+          // Notify other players via lightweight delta event
+          broadcastEvent(
+            room,
+            'room:player-joined',
+            {
+              player: toPublicPlayer(room, existingPlayer),
+              hostPlayerId: room.hostPlayerId,
+              totalRounds: room.currentRound?.totalRounds ?? room.turnOrder.length,
+              eligibleGuessersCount: room.currentRound?.eligibleGuessersCount ?? 0,
+              reconnected: true,
+            },
+            existingPlayer.id
+          );
           return;
         }
 
@@ -967,13 +1201,16 @@ async function startServer() {
           (p) => p.connectionStatus === 'connected'
         ).length;
         if (connectedCount >= room.settings.maxPlayers) {
-          sendError(`Esta sala atingiu o limite máximo de ${room.settings.maxPlayers} jogadores.`);
+          sendError(
+            `Esta sala atingiu o limite máximo de ${room.settings.maxPlayers} jogadores.`,
+            'ROOM_FULL'
+          );
           return;
         }
 
         let rawNickname = sanitizeText(payload.nickname, 18);
         if (rawNickname.length < 2) {
-          sendError('Seu apelido deve ter entre 2 e 18 caracteres.');
+          sendError('Seu apelido deve ter entre 2 e 18 caracteres.', 'INVALID_NICKNAME');
           return;
         }
 
@@ -988,7 +1225,11 @@ async function startServer() {
           rawNickname = `${rawNickname.slice(0, 14)} #${suffix}`;
         }
 
-        const avatarId = typeof payload.avatarId === 'number' ? Math.max(0, Math.min(11, payload.avatarId)) : 0;
+        const avatarId =
+          typeof payload.avatarId === 'number' && Number.isFinite(payload.avatarId)
+            ? Math.max(0, Math.min(11, Math.floor(payload.avatarId)))
+            : 0;
+        const now = Date.now();
         const newPlayer: InternalPlayer = {
           id: requestedPlayerId,
           roomId: room.id,
@@ -996,7 +1237,7 @@ async function startServer() {
           avatarId,
           score: 0,
           connectionStatus: 'connected',
-          joinedAt: Date.now(),
+          joinedAt: now,
           isHost: false,
           hasGuessedThisRound: false,
           roundPointsEarned: 0,
@@ -1004,7 +1245,10 @@ async function startServer() {
           timesDrawn: 0,
           ws,
           lastGuessAt: 0,
-          lastStrokeSeq: -1,
+          messageWindowStart: now,
+          messageCountInWindow: 0,
+          lastDrawBatchAt: 0,
+          lastStrokeSeqMap: new Map(),
           disconnectTimer: null,
         };
 
@@ -1023,34 +1267,50 @@ async function startServer() {
         boundRoomId = joinCode;
         boundPlayerId = requestedPlayerId;
 
-        addFeedMessage(room, 'system', `${rawNickname} entrou na sala.`);
+        const joinFeedMsg = addFeedMessage(room, 'system', `${rawNickname} entrou na sala.`);
         sendToPlayer(newPlayer, 'room:joined_ack', {
           playerId: requestedPlayerId,
           joinCode,
           roomId: room.id,
+          serverBootId: SERVER_BOOT_ID,
         });
         sendFullStateToPlayer(room, newPlayer);
-        broadcastRoomState(room, false);
+
+        // Broadcast lightweight delta event to other players instead of full room state
+        broadcastEvent(
+          room,
+          'room:player-joined',
+          {
+            player: toPublicPlayer(room, newPlayer),
+            hostPlayerId: room.hostPlayerId,
+            totalRounds: room.currentRound?.totalRounds ?? room.turnOrder.length,
+            eligibleGuessersCount: room.currentRound?.eligibleGuessersCount ?? 0,
+            feedMessage: joinFeedMsg,
+          },
+          newPlayer.id
+        );
         return;
       }
 
       if (!boundRoomId || !boundPlayerId) {
-        sendError('Você não está conectado a uma sala.');
+        sendError('Você não está conectado a uma sala.', 'UNAUTHORIZED');
         return;
       }
       const room = rooms.get(boundRoomId);
       if (!room) {
-        sendError('A sala não existe mais.');
+        sendError('A sala não existe mais.', 'ROOM_EXPIRED');
         return;
       }
       const player = room.players.get(boundPlayerId);
       if (!player) {
-        sendError('Jogador não encontrado na sala.');
+        sendError('Jogador não encontrado na sala.', 'UNAUTHORIZED');
         return;
       }
 
-      // 3. STATE REQUEST
-      if (event === 'state:request') {
+      room.lastActivityAt = Date.now();
+
+      // 3. STATE REQUEST / GAME READY
+      if (event === 'state:request' || event === 'game:ready') {
         sendFullStateToPlayer(room, player);
         return;
       }
@@ -1058,7 +1318,7 @@ async function startServer() {
       // 4. UPDATE SETTINGS
       if (event === 'room:settings') {
         if (player.id !== room.hostPlayerId) {
-          sendError('Somente o anfitrião pode alterar as configurações da sala.');
+          sendError('Somente o anfitrião pode alterar as configurações da sala.', 'FORBIDDEN');
           return;
         }
         if (room.status !== 'LOBBY') {
@@ -1073,7 +1333,7 @@ async function startServer() {
       // 5. KICK PLAYER
       if (event === 'room:kick') {
         if (player.id !== room.hostPlayerId) {
-          sendError('Somente o anfitrião pode remover participantes.');
+          sendError('Somente o anfitrião pode remover participantes.', 'FORBIDDEN');
           return;
         }
         const targetId = sanitizeText(payload.targetPlayerId, 48);
@@ -1088,12 +1348,22 @@ async function startServer() {
           target.ws.close();
         }
         room.players.delete(targetId);
-        addFeedMessage(room, 'system', `${target.nickname} foi removido da sala pelo anfitrião.`);
+        const kickMsg = addFeedMessage(room, 'system', `${target.nickname} foi removido da sala pelo anfitrião.`);
 
         if (room.currentRound && room.currentRound.drawerPlayerId === targetId && room.status === 'DRAWING') {
           endRound(room, 'drawer_disconnected');
         } else {
-          broadcastRoomState(room, false);
+          broadcastEvent(room, 'room:player-left', {
+            playerId: targetId,
+            nickname: target.nickname,
+            explicitLeave: true,
+            connectionStatus: 'disconnected',
+            hostPlayerId: room.hostPlayerId,
+            eligibleGuessersCount: room.currentRound
+              ? getEligibleGuessers(room, room.currentRound.drawerPlayerId).length
+              : 0,
+            feedMessage: kickMsg,
+          });
         }
         return;
       }
@@ -1101,7 +1371,7 @@ async function startServer() {
       // 6. START GAME
       if (event === 'game:start') {
         if (player.id !== room.hostPlayerId) {
-          sendError('Somente o anfitrião pode iniciar a partida.');
+          sendError('Somente o anfitrião pode iniciar a partida.', 'FORBIDDEN');
           return;
         }
         const connectedPlayers = Array.from(room.players.values()).filter(
@@ -1118,6 +1388,7 @@ async function startServer() {
           p.timesDrawn = 0;
           p.hasGuessedThisRound = false;
           p.roundPointsEarned = 0;
+          p.lastStrokeSeqMap.clear();
         }
 
         const playerIds = connectedPlayers.map((p) => p.id);
@@ -1156,7 +1427,7 @@ async function startServer() {
             : player.id === room.currentRound.drawerPlayerId;
 
         if (!canSelect) {
-          sendError('Você não tem permissão para escolher o tema desta rodada.');
+          sendError('Você não tem permissão para escolher o tema desta rodada.', 'FORBIDDEN');
           return;
         }
 
@@ -1171,21 +1442,58 @@ async function startServer() {
         return;
       }
 
-      // 8. DRAWING STROKE OR GEOMETRIC SHAPE UPSERT
-      if (event === 'drawing:stroke') {
+      // 8. DRAWING BATCH / STROKE (Sections 4, 6, 9, 11)
+      if (event === 'drawing:batch' || event === 'drawing:stroke') {
         if (room.status !== 'DRAWING' || !room.currentRound) return;
-        if (player.id !== room.currentRound.drawerPlayerId) return;
+        // Rule 14: Strictly reject drawing events from anyone other than the current drawer
+        if (player.id !== room.currentRound.drawerPlayerId) {
+          sendError('Apenas o desenhista da rodada pode enviar traços.', 'FORBIDDEN_NOT_DRAWER');
+          return;
+        }
+
+        const now = Date.now();
+        if (
+          payload.tool !== 'shape' &&
+          payload.phase !== 'end' &&
+          payload.phase !== 'start' &&
+          now - player.lastDrawBatchAt < MIN_DRAW_BATCH_INTERVAL_MS
+        ) {
+          return;
+        }
+        player.lastDrawBatchAt = now;
 
         const strokeId = sanitizeText(payload.strokeId, 48);
         if (!strokeId) return;
 
         const tool: 'brush' | 'eraser' | 'shape' =
           payload.tool === 'eraser' ? 'eraser' : payload.tool === 'shape' ? 'shape' : 'brush';
-        const color = sanitizeText(payload.color, 16) || '#0F172A';
-        const width = typeof payload.width === 'number' ? Math.max(2, Math.min(48, payload.width)) : 8;
-        const sequence = typeof payload.sequence === 'number' ? payload.sequence : 0;
+        const color = /^#[0-9A-Fa-f]{6}$/.test(String(payload.color || ''))
+          ? String(payload.color)
+          : '#0F172A';
+        const width =
+          typeof payload.width === 'number' && Number.isFinite(payload.width)
+            ? Math.max(2, Math.min(48, Math.round(payload.width)))
+            : 8;
+        const sequence =
+          typeof payload.sequence === 'number' && Number.isFinite(payload.sequence)
+            ? Math.floor(payload.sequence)
+            : 0;
+        const phase: StrokePhase =
+          payload.phase === 'start' ||
+          payload.phase === 'move' ||
+          payload.phase === 'end' ||
+          payload.phase === 'shape'
+            ? payload.phase
+            : 'move';
 
-        if (tool === 'shape' && payload.shape) {
+        // Duplicate sequence guard per strokeId (Section 8)
+        const prevSeq = player.lastStrokeSeqMap.get(strokeId) ?? -1;
+        if (sequence <= prevSeq && tool !== 'shape') {
+          return;
+        }
+        player.lastStrokeSeqMap.set(strokeId, sequence);
+
+        if (tool === 'shape' && payload.shape && typeof payload.shape === 'object') {
           const validShapes: ShapeType[] = [
             'rect',
             'circle',
@@ -1199,18 +1507,31 @@ async function startServer() {
           const sType: ShapeType = validShapes.includes(payload.shape.shapeType)
             ? payload.shape.shapeType
             : 'rect';
+          const rawX = Number(payload.shape.x);
+          const rawY = Number(payload.shape.y);
+          const rawW = Number(payload.shape.w);
+          const rawH = Number(payload.shape.h);
+          if (
+            !Number.isFinite(rawX) ||
+            !Number.isFinite(rawY) ||
+            !Number.isFinite(rawW) ||
+            !Number.isFinite(rawH)
+          ) {
+            return;
+          }
+
           const shapeGeom: ShapeGeometry = {
             shapeType: sType,
-            x: Math.max(0, Math.min(1, Number((payload.shape.x ?? 0.5).toFixed(4)))),
-            y: Math.max(0, Math.min(1, Number((payload.shape.y ?? 0.5).toFixed(4)))),
-            w: Math.max(0.02, Math.min(1, Number((payload.shape.w ?? 0.2).toFixed(4)))),
-            h: Math.max(0.02, Math.min(1, Number((payload.shape.h ?? 0.2).toFixed(4)))),
+            x: Math.max(0, Math.min(1, Number(rawX.toFixed(4)))),
+            y: Math.max(0, Math.min(1, Number(rawY.toFixed(4)))),
+            w: Math.max(0.02, Math.min(1, Number(rawW.toFixed(4)))),
+            h: Math.max(0.02, Math.min(1, Number(rawH.toFixed(4)))),
             filled: Boolean(payload.shape.filled),
           };
 
           let existingShape = room.strokes.find((s) => s.id === strokeId);
           if (!existingShape) {
-            if (room.strokes.length >= 400) room.strokes.shift();
+            if (room.strokes.length >= MAX_STROKES_PER_ROUND) room.strokes.shift();
             existingShape = {
               id: strokeId,
               roundId: room.currentRound.id,
@@ -1221,7 +1542,7 @@ async function startServer() {
               points: [],
               shape: shapeGeom,
               sequence,
-              createdAt: Date.now(),
+              createdAt: now,
             };
             room.strokes.push(existingShape);
             room.redoStack = [];
@@ -1232,94 +1553,120 @@ async function startServer() {
             existingShape.sequence = Math.max(existingShape.sequence, sequence);
           }
 
-          broadcastEvent(
-            room,
-            'drawing:stroke',
-            {
-              roundId: room.currentRound.id,
-              strokeId,
-              playerId: player.id,
-              tool: 'shape',
-              color,
-              width,
-              points: [],
-              shape: shapeGeom,
-              sequence,
-            },
-            player.id,
-            true
-          );
+          const batchOut = {
+            roundId: room.currentRound.id,
+            strokeId,
+            playerId: player.id,
+            phase: 'shape' as StrokePhase,
+            tool: 'shape' as const,
+            color,
+            width,
+            points: [],
+            shape: shapeGeom,
+            sequence,
+          };
+          broadcastEvent(room, 'drawing:batch', batchOut, player.id, true);
           return;
         }
 
+        // Brush / Eraser batch validation (Rules 8, 12, 13)
         const rawPoints = Array.isArray(payload.points) ? payload.points : [];
-        const validPoints = rawPoints
-          .slice(0, 120)
-          .filter(
-            (pt: any) =>
-              pt &&
-              typeof pt.x === 'number' &&
-              typeof pt.y === 'number' &&
-              !Number.isNaN(pt.x) &&
-              !Number.isNaN(pt.y)
-          )
-          .map((pt: any) => ({
-            x: Math.max(0, Math.min(1, Number(pt.x.toFixed(4)))),
-            y: Math.max(0, Math.min(1, Number(pt.y.toFixed(4)))),
-          }));
+        if (rawPoints.length === 0 || rawPoints.length > MAX_POINTS_PER_BATCH) {
+          return;
+        }
 
-        if (validPoints.length === 0) return;
+        const cleanPoints: PointNormalized[] = [];
+        for (let i = 0; i < rawPoints.length; i++) {
+          const pt = rawPoints[i];
+          if (!pt || typeof pt !== 'object') continue;
+          const px = Number(pt.x);
+          const py = Number(pt.y);
+          if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+          if (px < -0.05 || px > 1.05 || py < -0.05 || py > 1.05) continue;
+          cleanPoints.push({
+            x: Math.max(0, Math.min(1, Number(px.toFixed(4)))),
+            y: Math.max(0, Math.min(1, Number(py.toFixed(4)))),
+          });
+        }
 
-        let existingStroke = room.strokes.find((s) => s.id === strokeId);
-        if (!existingStroke) {
-          if (room.strokes.length >= 400) {
-            room.strokes.shift();
+        if (cleanPoints.length === 0) return;
+
+        // Enforce maximum recoverable snapshot size (Section 8 & 9)
+        if (room.currentRound.totalPointsCount + cleanPoints.length > MAX_TOTAL_POINTS_PER_ROUND) {
+          while (
+            room.strokes.length > 1 &&
+            room.currentRound.totalPointsCount + cleanPoints.length > MAX_TOTAL_POINTS_PER_ROUND
+          ) {
+            const removed = room.strokes.shift();
+            if (removed) {
+              room.currentRound.totalPointsCount = Math.max(
+                0,
+                room.currentRound.totalPointsCount - removed.points.length
+              );
+            }
           }
-          existingStroke = {
+        }
+
+        let stroke = room.strokes.find((s) => s.id === strokeId);
+        if (!stroke) {
+          if (room.strokes.length >= MAX_STROKES_PER_ROUND) {
+            const removed = room.strokes.shift();
+            if (removed) {
+              room.currentRound.totalPointsCount = Math.max(
+                0,
+                room.currentRound.totalPointsCount - removed.points.length
+              );
+            }
+          }
+          stroke = {
             id: strokeId,
             roundId: room.currentRound.id,
             playerId: player.id,
             tool,
             color,
             width,
-            points: validPoints,
+            points: cleanPoints,
             sequence,
-            createdAt: Date.now(),
+            createdAt: now,
           };
-          room.strokes.push(existingStroke);
+          room.strokes.push(stroke);
           room.redoStack = [];
         } else {
-          existingStroke.points.push(...validPoints);
-          existingStroke.sequence = Math.max(existingStroke.sequence, sequence);
+          if (stroke.points.length + cleanPoints.length <= 1200) {
+            stroke.points.push(...cleanPoints);
+          }
+          stroke.sequence = Math.max(stroke.sequence, sequence);
         }
+        room.currentRound.totalPointsCount += cleanPoints.length;
 
-        broadcastEvent(
-          room,
-          'drawing:stroke',
-          {
-            roundId: room.currentRound.id,
-            strokeId,
-            playerId: player.id,
-            tool,
-            color,
-            width,
-            points: validPoints,
-            sequence,
-          },
-          player.id,
-          true
-        );
+        const batchPayload = {
+          roundId: room.currentRound.id,
+          strokeId,
+          playerId: player.id,
+          phase,
+          tool,
+          color,
+          width,
+          points: cleanPoints,
+          sequence,
+        };
+
+        // Single serialization broadcast to all 31 spectators
+        broadcastEvent(room, 'drawing:batch', batchPayload, player.id, true);
         return;
       }
 
-      // 9. UNDO / REDO / CLEAR
+      // 9. UNDO / REDO / CLEAR CANVAS
       if (event === 'drawing:undo') {
         if (room.status !== 'DRAWING' || !room.currentRound) return;
         if (player.id !== room.currentRound.drawerPlayerId) return;
-
         const popped = room.strokes.pop();
         if (popped) {
           room.redoStack.push(popped);
+          room.currentRound.totalPointsCount = Math.max(
+            0,
+            room.currentRound.totalPointsCount - popped.points.length
+          );
           broadcastEvent(room, 'drawing:state', {
             roundId: room.currentRound.id,
             strokes: room.strokes,
@@ -1331,10 +1678,10 @@ async function startServer() {
       if (event === 'drawing:redo') {
         if (room.status !== 'DRAWING' || !room.currentRound) return;
         if (player.id !== room.currentRound.drawerPlayerId) return;
-
         const restored = room.redoStack.pop();
         if (restored) {
           room.strokes.push(restored);
+          room.currentRound.totalPointsCount += restored.points.length;
           broadcastEvent(room, 'drawing:state', {
             roundId: room.currentRound.id,
             strokes: room.strokes,
@@ -1345,120 +1692,123 @@ async function startServer() {
 
       if (event === 'drawing:clear') {
         if (room.status !== 'DRAWING' || !room.currentRound) return;
-        if (player.id !== room.currentRound.drawerPlayerId) return;
-
+        if (player.id !== room.currentRound.drawerPlayerId) {
+          sendError('Apenas o desenhista pode limpar o desenho.', 'FORBIDDEN');
+          return;
+        }
         room.strokes = [];
         room.redoStack = [];
-        broadcastEvent(room, 'drawing:state', {
-          roundId: room.currentRound.id,
-          strokes: [],
-        });
+        room.currentRound.totalPointsCount = 0;
+        player.lastStrokeSeqMap.clear();
+        broadcastEvent(room, 'drawing:clear', { roundId: room.currentRound.id });
         return;
       }
 
-      // 10. REQUEST HINT / REVEAL LETTER UNLIMITED TIMES
+      // 10. REQUEST HINT (UNLIMITED LETTER REVEALS OR CONTEXTUAL HINTS)
       if (event === 'hint:request') {
-        if (room.status !== 'DRAWING' || !room.currentRound || !room.currentRound.secretWord) {
-          sendError('Dicas só podem ser usadas durante a fase de desenho.');
-          return;
-        }
+        if (room.status !== 'DRAWING' || !room.currentRound || !room. currentRound.secretWord) return;
         const round = room.currentRound;
         const word = round.secretWord;
         if (!word) return;
         const mode = payload.mode === 'context' ? 'context' : 'letter';
 
         if (mode === 'context') {
-          if (round.contextHintsUsed >= word.hints.length) {
-            sendError('Todas as dicas textuais desta palavra já foram reveladas.');
+          if (round.contextHintsUsed >= 3) {
+            sendError('Todas as 3 dicas descritivas desta palavra já foram reveladas.');
             return;
           }
-          const rawHint = word.hints[round.contextHintsUsed];
+          const hintIdx = round.contextHintsUsed;
+          const hintText = word.hints[hintIdx] || `Dica: pertence ao tema ${round.themeName}.`;
           round.contextHintsUsed += 1;
           round.hintsUsed += 1;
           round.lastHintAt = Date.now();
-          const hint: RevealedHint = {
+
+          const revealed: RevealedHint = {
             index: round.revealedHints.length + 1,
+            text: hintText,
             type: 'contextual',
-            text: `Pista ${round.contextHintsUsed}: ${rawHint}`,
             revealedAt: Date.now(),
           };
-          round.revealedHints.push(hint);
-          addFeedMessage(room, 'hint', `${player.nickname} liberou uma pista: ${hint.text}`);
+          round.revealedHints.push(revealed);
+          const feedMsg = addFeedMessage(room, 'hint', `Dica liberada: ${hintText}`);
+          const maskState = computeWordMaskState(round);
+
           broadcastEvent(room, 'hint:revealed', {
             roundId: round.id,
-            hint,
+            hint: revealed,
             hintsUsed: round.hintsUsed,
-            maxHints: round.maxHints,
+            lastHintAt: round.lastHintAt,
+            ...maskState,
+            feedMessage: feedMsg,
           });
-          broadcastRoomState(room, false);
           return;
         }
 
         const chars = Array.from(word.text);
-        const unrevealedPositions = chars
-          .map((ch, idx) => ({ ch, idx }))
-          .filter(
-            (item) =>
-              item.ch !== ' ' &&
-              item.ch !== '-' &&
-              !round.revealedLetterIndices.includes(item.idx)
-          );
+        const unrevealedPositions: number[] = [];
+        chars.forEach((ch, idx) => {
+          if (ch !== ' ' && ch !== '-' && !round.revealedLetterIndices.includes(idx)) {
+            unrevealedPositions.push(idx);
+          }
+        });
 
         if (unrevealedPositions.length === 0) {
           sendError('Todas as letras da palavra já foram reveladas!');
           return;
         }
 
-        let chosenPos = unrevealedPositions[Math.floor(Math.random() * unrevealedPositions.length)];
-        if (typeof payload.letterIndex === 'number') {
-          const specific = unrevealedPositions.find((p) => p.idx === payload.letterIndex);
-          if (specific) chosenPos = specific;
+        let targetIdx: number;
+        if (
+          typeof payload.letterIndex === 'number' &&
+          unrevealedPositions.includes(payload.letterIndex)
+        ) {
+          targetIdx = payload.letterIndex;
+        } else {
+          targetIdx =
+            unrevealedPositions[Math.floor(Math.random() * unrevealedPositions.length)];
         }
 
-        round.revealedLetterIndices.push(chosenPos.idx);
+        round.revealedLetterIndices.push(targetIdx);
         round.hintsUsed += 1;
         round.lastHintAt = Date.now();
 
-        const { wordMask } = computeWordMaskState(round);
-        const formattedMask = wordMask.map((c) => (c === ' ' ? '   ' : c)).join(' ');
+        const maskState = computeWordMaskState(round);
+        const revealedChar = chars[targetIdx].toUpperCase();
+        const hintText = `Letra revelada na posição ${targetIdx + 1}: "${revealedChar}" (${maskState.wordMask.join(' ')})`;
 
-        const hint: RevealedHint = {
+        const revealed: RevealedHint = {
           index: round.revealedHints.length + 1,
+          text: hintText,
           type: 'letters',
-          text: `Letra "${chosenPos.ch.toUpperCase()}" revelada → ${formattedMask}`,
           revealedAt: Date.now(),
         };
+        round.revealedHints.push(revealed);
 
-        round.revealedHints.push(hint);
-        if (round.revealedHints.length > 12) {
-          round.revealedHints.shift();
-        }
-
-        addFeedMessage(
+        const feedMsg = addFeedMessage(
           room,
           'hint',
-          `Dica de letra ativada por ${player.nickname}: letra "${chosenPos.ch.toUpperCase()}" na posição ${chosenPos.idx + 1}!`
+          `Dica de Letra: ${maskState.wordMask.join(' ')}`
         );
 
         broadcastEvent(room, 'hint:revealed', {
           roundId: round.id,
-          hint,
+          hint: revealed,
           hintsUsed: round.hintsUsed,
-          maxHints: round.maxHints,
+          lastHintAt: round.lastHintAt,
+          ...maskState,
+          feedMessage: feedMsg,
         });
-        broadcastRoomState(room, false);
         return;
       }
 
-      // 11. SUBMIT GUESS
-      if (event === 'guess:submit') {
+      // 11. SUBMIT GUESS (Supports both 'guess:submit' and 'chat:guess' — Section 5 & 6)
+      if (event === 'guess:submit' || event === 'chat:guess') {
         if (room.status !== 'DRAWING' || !room.currentRound || !room.currentRound.secretWord) {
-          sendError('Os palpites estão fechados neste momento.');
           return;
         }
         const round = room.currentRound;
         if (player.id === round.drawerPlayerId) {
-          sendError('O desenhista não pode enviar palpites na própria rodada.');
+          sendError('Você é o desenhista desta rodada e não pode enviar palpites.');
           return;
         }
         if (player.hasGuessedThisRound) {
@@ -1467,16 +1817,17 @@ async function startServer() {
         }
 
         const now = Date.now();
-        if (now - player.lastGuessAt < 350) {
-          sendError('Aguarde um instante antes de enviar outro palpite.');
+        if (!checkMessageRateLimit(player, now)) {
+          sendError('Aguarde um instante antes de enviar outro palpite.', 'RATE_LIMITED');
           return;
         }
-        player.lastGuessAt = now;
 
-        const rawGuess = sanitizeText(payload.text, 80);
+        const rawGuess = sanitizeText(payload.text, MAX_GUESS_LENGTH);
         if (!rawGuess) return;
 
         const normalizedGuess = normalizeAnswer(rawGuess);
+        if (!normalizedGuess) return;
+
         const secret = round.secretWord;
         if (!secret) return;
         const acceptedNormalized = new Set(
@@ -1491,62 +1842,75 @@ async function startServer() {
           const order = round.correctGuessPlayerIds.length;
           player.guessOrder = order;
 
-          let pointsAwarded = 100;
-          if (order === 2) pointsAwarded = 80;
-          else if (order === 3) pointsAwarded = 60;
-          else if (order >= 4) pointsAwarded = 40;
+          let pts = 0;
+          if (room.settings.scoringMode === 'competitive') {
+            const basePoints = order === 1 ? 100 : order === 2 ? 80 : order === 3 ? 60 : 40;
+            const hintPenalty = Math.min(25, round.hintsUsed * 5);
+            pts = Math.max(15, basePoints - hintPenalty);
+          }
 
-          player.score += pointsAwarded;
-          player.roundPointsEarned = pointsAwarded;
+          player.score += pts;
+          player.roundPointsEarned = pts;
 
-          round.correctGuessesOrder.push({
+          const record: RoundGuessRecord = {
             playerId: player.id,
             nickname: player.nickname,
             avatarId: player.avatarId,
             order,
-            pointsAwarded,
+            pointsAwarded: pts,
             submittedAt: now,
-          });
+          };
+          round.correctGuessesOrder.push(record);
+
+          const hitMsg =
+            room.settings.scoringMode === 'competitive'
+              ? `${player.nickname} acertou a palavra! (+${pts} pts)`
+              : `${player.nickname} acertou a palavra!`;
+
+          const feedMsg = addFeedMessage(room, 'correct_guess', hitMsg, player.nickname);
 
           sendToPlayer(player, 'guess:feedback', {
             correct: true,
-            text: `Você acertou! +${pointsAwarded} pontos`,
-            pointsAwarded,
+            pointsAwarded: pts,
             order,
+            text: 'Você acertou! Resposta bloqueada até o fim da rodada.',
           });
 
-          addFeedMessage(
-            room,
-            'correct_guess',
-            `${player.nickname} acertou a palavra secreta! (${order}º lugar)`,
-            player.nickname
-          );
-
-          broadcastEvent(room, 'guess:correct', {
+          const correctPayload = {
             roundId: round.id,
             playerId: player.id,
             nickname: player.nickname,
+            avatarId: player.avatarId,
             order,
-            correctCount: round.correctGuessPlayerIds.length,
-            eligibleCount: round.eligibleGuessersCount,
-          });
+            pointsAwarded: pts,
+            playerTotalScore: player.score,
+            correctGuessPlayerIds: round.correctGuessPlayerIds,
+            correctGuessesOrder: round.correctGuessesOrder,
+            eligibleGuessersCount: round.eligibleGuessersCount,
+            feedMessage: feedMsg,
+          };
 
-          const currentEligible = getEligibleGuessers(room, round.drawerPlayerId);
+          broadcastEvent(room, 'guess:correct', correctPayload);
+          broadcastEvent(room, 'game:correct-answer', correctPayload);
+
+          const eligible = getEligibleGuessers(room, round.drawerPlayerId);
           const allGuessed =
-            currentEligible.length > 0 &&
-            currentEligible.every((p) => round.correctGuessPlayerIds.includes(p.id));
+            eligible.length > 0 &&
+            eligible.every((p) => round.correctGuessPlayerIds.includes(p.id));
 
           if (room.settings.endWhenAllGuessed && allGuessed) {
             endRound(room, 'all_guessed');
-          } else {
-            broadcastRoomState(room, false);
           }
         } else {
+          // Send private feedback to the guesser
           sendToPlayer(player, 'guess:feedback', {
             correct: false,
-            guessText: rawGuess,
-            text: `Palpite enviado: "${rawGuess}" — ainda não é essa!`,
+            text: `Palpite incorreto: "${rawGuess}". Tente novamente!`,
           });
+
+          // Broadcast safe wrong guess to the room chat feed so all 32 players see live guessing activity
+          const guessFeedMsg = addFeedMessage(room, 'chat', rawGuess, player.nickname);
+          broadcastEvent(room, 'chat:message', { message: guessFeedMsg });
         }
         return;
       }
@@ -1557,7 +1921,13 @@ async function startServer() {
           sendError('O chat geral está desativado nas configurações desta sala.');
           return;
         }
-        const text = sanitizeText(payload.text, 100);
+        const now = Date.now();
+        if (!checkMessageRateLimit(player, now)) {
+          sendError('Aguarde um instante antes de enviar outra mensagem.', 'RATE_LIMITED');
+          return;
+        }
+
+        const text = sanitizeText(payload.text, MAX_GUESS_LENGTH);
         if (!text) return;
 
         if (room.currentRound && room.currentRound.secretWord && room.status === 'DRAWING') {
@@ -1570,8 +1940,8 @@ async function startServer() {
           }
         }
 
-        addFeedMessage(room, 'chat', text, player.nickname);
-        broadcastRoomState(room, false);
+        const chatMsg = addFeedMessage(room, 'chat', text, player.nickname);
+        broadcastEvent(room, 'chat:message', { message: chatMsg });
         return;
       }
 
@@ -1581,7 +1951,7 @@ async function startServer() {
         const isDrawer = player.id === room.currentRound.drawerPlayerId && room.settings.allowEarlyFinish;
         const isHost = player.id === room.hostPlayerId;
         if (!isDrawer && !isHost) {
-          sendError('Você não tem permissão para encerrar a rodada antecipadamente.');
+          sendError('Você não tem permissão para encerrar a rodada antecipadamente.', 'FORBIDDEN');
           return;
         }
         endRound(room, isDrawer ? 'drawer_finished' : 'host_ended');
@@ -1600,7 +1970,7 @@ async function startServer() {
       // 15. PAUSE / RESUME MATCH
       if (event === 'game:pause_toggle') {
         if (player.id !== room.hostPlayerId) {
-          sendError('Somente o anfitrião pode pausar ou retomar a partida.');
+          sendError('Somente o anfitrião pode pausar ou retomar a partida.', 'FORBIDDEN');
           return;
         }
         if (room.status === 'DRAWING' && room.currentRound) {
@@ -1637,7 +2007,7 @@ async function startServer() {
       // 16. RETURN TO LOBBY
       if (event === 'game:return_lobby') {
         if (player.id !== room.hostPlayerId) {
-          sendError('Somente o anfitrião pode voltar a sala para o lobby.');
+          sendError('Somente o anfitrião pode voltar a sala para o lobby.', 'FORBIDDEN');
           return;
         }
         clearPhaseTimer(room);
@@ -1649,6 +2019,7 @@ async function startServer() {
           p.hasGuessedThisRound = false;
           p.guessOrder = undefined;
           p.roundPointsEarned = 0;
+          p.lastStrokeSeqMap.clear();
         }
         addFeedMessage(room, 'system', 'A sala retornou ao lobby para uma nova partida.');
         broadcastRoomState(room, true);
@@ -1662,6 +2033,8 @@ async function startServer() {
         boundPlayerId = null;
         return;
       }
+
+      sendError(`Evento desconhecido: ${event}`, 'UNKNOWN_EVENT');
     });
 
     ws.on('close', () => {
@@ -1676,11 +2049,15 @@ async function startServer() {
 
   function handlePlayerLeave(room: InternalRoom, player: InternalPlayer, explicitLeave: boolean) {
     player.ws = null;
+    let leaveFeedMsg: SystemFeedMessage | undefined;
 
     if (explicitLeave) {
+      if (player.disconnectTimer) {
+        clearTimeout(player.disconnectTimer);
+        player.disconnectTimer = null;
+      }
       room.players.delete(player.id);
-      addFeedMessage(room, 'system', `${player.nickname} saiu da sala.`);
-      broadcastEvent(room, 'player:left', { playerId: player.id, nickname: player.nickname });
+      leaveFeedMsg = addFeedMessage(room, 'system', `${player.nickname} saiu da sala.`);
     } else {
       player.connectionStatus = 'disconnected';
     }
@@ -1689,17 +2066,20 @@ async function startServer() {
       (p) => p.connectionStatus === 'connected'
     );
 
-    if (connectedPlayers.length === 0 && explicitLeave) {
-      clearPhaseTimer(room);
-      rooms.delete(room.joinCode);
-      return;
+    if (connectedPlayers.length === 0) {
+      room.emptySince = Date.now();
+      if (explicitLeave) {
+        cleanupRoomResources(room);
+        rooms.delete(room.joinCode);
+        return;
+      }
     }
 
     if (room.hostPlayerId === player.id && connectedPlayers.length > 0) {
       const nextHost = [...connectedPlayers].sort((a, b) => a.joinedAt - b.joinedAt)[0];
       if (nextHost) {
         room.hostPlayerId = nextHost.id;
-        addFeedMessage(room, 'system', `${nextHost.nickname} agora é o anfitrião da sala.`);
+        leaveFeedMsg = addFeedMessage(room, 'system', `${nextHost.nickname} agora é o anfitrião da sala.`);
       }
     }
 
@@ -1710,9 +2090,10 @@ async function startServer() {
     ) {
       if (explicitLeave) {
         endRound(room, 'drawer_disconnected');
+        return;
       } else {
-        // 25s grace period for mobile/Render proxy transient reconnects
         const roundId = room.currentRound.id;
+        if (player.disconnectTimer) clearTimeout(player.disconnectTimer);
         player.disconnectTimer = setTimeout(() => {
           if (
             player.connectionStatus === 'disconnected' &&
@@ -1735,30 +2116,57 @@ async function startServer() {
         currentEligible.every((p) => room.currentRound!.correctGuessPlayerIds.includes(p.id));
       if (room.settings.endWhenAllGuessed && allGuessed) {
         endRound(room, 'all_guessed');
+        return;
       }
     }
 
-    broadcastRoomState(room, false);
+    const leftPayload = {
+      playerId: player.id,
+      nickname: player.nickname,
+      explicitLeave,
+      connectionStatus: player.connectionStatus,
+      hostPlayerId: room.hostPlayerId,
+      eligibleGuessersCount: room.currentRound
+        ? getEligibleGuessers(room, room.currentRound.drawerPlayerId).length
+        : 0,
+      feedMessage: leaveFeedMsg,
+    };
+    broadcastEvent(room, 'room:player-left', leftPayload);
+    broadcastEvent(room, 'player:left', leftPayload);
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  const distPath = path.resolve(process.cwd(), 'dist');
+  const isProd =
+    process.env.NODE_ENV === 'production' ||
+    process.env.IS_BUNDLED_PROD === 'true' ||
+    Boolean(process.env.RENDER);
+
+  // Listen on 0.0.0.0:$PORT immediately so Render detects the open port without delay
+  const PORT = Number(process.env.PORT) || 3000;
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(
+      `Traço & Tema server listening on http://0.0.0.0:${PORT} (mode=${
+        isProd ? 'production' : 'development'
+      }, bootId=${SERVER_BOOT_ID})`
+    );
+  });
+
+  if (!isProd) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(__dirname, 'dist');
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
-
-  const PORT = Number(process.env.PORT) || 3000;
-  httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`Traço & Tema server running on http://0.0.0.0:${PORT}`);
-  });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('Fatal error starting server:', err);
+  process.exit(1);
+});
