@@ -75,6 +75,10 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
 
   const [nickname, setNickname] = useState<string>(defaultNickname);
   const [avatarId, setAvatarId] = useState<number>(defaultAvatarId);
+  const [customCreateRoomName, setCustomCreateRoomName] = useState<string>('');
+  const [customCreateDuration, setCustomCreateDuration] = useState<string>('60');
+  const [lobbyRoomName, setLobbyRoomName] = useState<string>('');
+  const [lobbyDurationStr, setLobbyDurationStr] = useState<string>('60');
   const [joinCodeInput, setJoinCodeInput] = useState<string>(autoJoinCode || '');
   const [roomState, setRoomState] = useState<RoomPublicState | null>(null);
   const [privateWord, setPrivateWord] = useState<{
@@ -649,13 +653,23 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
       setErrorMsg('Digite um apelido entre 2 e 18 caracteres.');
       return;
     }
+    const desiredName = customCreateRoomName.trim() || `Sala de ${cleanNick}`;
+    const parsedSec = parseInt(customCreateDuration, 10);
+    const durationSec = Number.isFinite(parsedSec)
+      ? Math.max(10, Math.min(600, parsedSec))
+      : 60;
+
+    setLobbyRoomName(desiredName);
+    setLobbyDurationStr(String(durationSec));
+
     sendWs('room:create', {
       playerId,
       nickname: cleanNick,
       avatarId,
       settings: {
-        roomName: `Arena de ${cleanNick}`,
+        roomName: desiredName,
         maxPlayers: 35,
+        roundDuration: durationSec,
       },
     });
   };
@@ -754,6 +768,16 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
   const round = roomState?.currentRound || null;
   const isDrawer = round?.drawerPlayerId === playerId;
   const selectedAvatarMeta = AVATAR_LIST[Math.abs(avatarId || 0) % AVATAR_LIST.length];
+
+  // Sync lobby inputs when joining a room or when non-host receives updated settings
+  useEffect(() => {
+    if (roomState?.settings) {
+      if (!isHost || !lobbyRoomName) {
+        setLobbyRoomName(roomState.settings.roomName);
+      }
+      setLobbyDurationStr(String(roomState.settings.roundDuration));
+    }
+  }, [roomState?.id, roomState?.settings?.roomName, roomState?.settings?.roundDuration, isHost]);
 
   // ============================================================================
   // VIEW 1: ENTRY / JOIN OR CREATE ROOM (CLEAN PARTY STUDIO HOME)
@@ -854,6 +878,49 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                   </button>
                 );
               })}
+            </div>
+
+            {/* Room Name & Custom Time Before Creating Room */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-3 border-t-2 border-indigo-100">
+              <div className="sm:col-span-7 flex flex-col gap-1">
+                <label
+                  htmlFor={`room-name-${clientSlotId}`}
+                  className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide"
+                >
+                  Nome da Sala (Personalizado)
+                </label>
+                <input
+                  id={`room-name-${clientSlotId}`}
+                  type="text"
+                  value={customCreateRoomName}
+                  onChange={(e) => setCustomCreateRoomName(e.target.value)}
+                  maxLength={45}
+                  placeholder={`Ex: Sala de ${nickname.trim() || 'Desenho'}`}
+                  className="w-full bg-indigo-50/70 border-2 border-indigo-200 focus:border-indigo-600 rounded-xl px-3.5 py-2 text-sm font-bold text-indigo-950 placeholder:text-indigo-400/70 focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div className="sm:col-span-5 flex flex-col gap-1">
+                <label
+                  htmlFor={`room-time-${clientSlotId}`}
+                  className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide"
+                >
+                  Tempo (Segundos)
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    id={`room-time-${clientSlotId}`}
+                    type="number"
+                    min={10}
+                    max={600}
+                    value={customCreateDuration}
+                    onChange={(e) => setCustomCreateDuration(e.target.value)}
+                    placeholder="60"
+                    className="w-full bg-indigo-50/70 border-2 border-indigo-200 focus:border-indigo-600 rounded-xl px-3 py-2 text-sm font-mono font-extrabold text-indigo-950 focus:outline-none transition-colors"
+                  />
+                  <span className="text-xs font-extrabold text-indigo-700 shrink-0">seg</span>
+                </div>
+              </div>
             </div>
 
             <button
@@ -978,6 +1045,9 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
         <div className="flex items-center gap-2.5 min-w-0">
           <AvatarSvg avatarId={me?.avatarId ?? avatarId} size={36} />
           <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-extrabold text-indigo-950">
+            <span className="truncate max-w-[180px] sm:max-w-[260px]" title={roomState.settings.roomName}>
+              {roomState.settings.roomName}
+            </span>
             <span className="font-mono text-indigo-600">#{roomState.joinCode}</span>
             {round && roomState.status !== 'LOBBY' && (
               <>
@@ -1296,14 +1366,26 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
-                  Nome da Sala
+                  Nome da Sala (Personalizado)
                 </label>
                 <input
                   type="text"
                   disabled={!isHost}
-                  value={roomState.settings.roomName}
-                  onChange={(e) => handleUpdateSetting('roomName', e.target.value)}
-                  maxLength={32}
+                  value={isHost ? lobbyRoomName : roomState.settings.roomName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLobbyRoomName(val);
+                    if (val.trim().length > 0) {
+                      handleUpdateSetting('roomName', val);
+                    }
+                  }}
+                  onBlur={() => {
+                    const clean = lobbyRoomName.trim() || `Sala de ${nickname.trim() || 'Jogo'}`;
+                    setLobbyRoomName(clean);
+                    handleUpdateSetting('roomName', clean);
+                  }}
+                  placeholder="Digite o nome que quiser para a sala..."
+                  maxLength={45}
                   className="w-full bg-indigo-50/80 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-600"
                 />
               </div>
@@ -1327,23 +1409,70 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-extrabold text-indigo-950 mb-1.5">
-                  Tempo de Desenho
-                </label>
-                <select
-                  disabled={!isHost}
-                  value={roomState.settings.roundDuration}
-                  onChange={(e) =>
-                    handleUpdateSetting('roundDuration', Number(e.target.value) as 45 | 60 | 90 | 120)
-                  }
-                  className="w-full bg-indigo-50/80 border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:outline-none focus:border-indigo-600"
-                >
-                  <option value={45}>45 segundos (Rápido)</option>
-                  <option value={60}>60 segundos (Clássico)</option>
-                  <option value={90}>90 segundos (Criativo)</option>
-                  <option value={120}>120 segundos (Caprichado)</option>
-                </select>
+              <div className="sm:col-span-2 bg-indigo-50/50 border-2 border-indigo-100 rounded-2xl p-3.5 flex flex-col gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-xs font-extrabold text-indigo-950">
+                    Tempo de Desenho (Personalizado em Segundos — de 10s a 600s)
+                  </label>
+                  <span className="text-xs font-mono font-extrabold text-indigo-700">
+                    Atual: {roomState.settings.roundDuration} segundos
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={10}
+                      max={600}
+                      disabled={!isHost}
+                      value={lobbyDurationStr}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setLobbyDurationStr(raw);
+                        const num = parseInt(raw, 10);
+                        if (Number.isFinite(num) && num >= 10 && num <= 600) {
+                          handleUpdateSetting('roundDuration', num);
+                        }
+                      }}
+                      onBlur={() => {
+                        const num = parseInt(lobbyDurationStr, 10);
+                        const clamped = Number.isFinite(num)
+                          ? Math.max(10, Math.min(600, num))
+                          : 60;
+                        setLobbyDurationStr(String(clamped));
+                        handleUpdateSetting('roundDuration', clamped);
+                      }}
+                      placeholder="Ex: 75"
+                      className="w-28 bg-white border-2 border-indigo-200 disabled:opacity-60 rounded-xl px-3 py-2 text-sm font-mono font-extrabold text-indigo-950 focus:outline-none focus:border-indigo-600"
+                    />
+                    <span className="text-xs font-extrabold text-indigo-900">segundos</span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+                    {[30, 45, 60, 90, 120, 180].map((presetSec) => {
+                      const isCurrent = roomState.settings.roundDuration === presetSec;
+                      return (
+                        <button
+                          key={presetSec}
+                          type="button"
+                          disabled={!isHost}
+                          onClick={() => {
+                            setLobbyDurationStr(String(presetSec));
+                            handleUpdateSetting('roundDuration', presetSec);
+                          }}
+                          className={`px-2.5 py-1.5 rounded-xl text-xs font-mono font-extrabold border transition-colors cursor-pointer disabled:opacity-50 ${
+                            isCurrent
+                              ? 'bg-amber-400 border-amber-500 text-indigo-950 shadow-2xs'
+                              : 'bg-white border-indigo-200 text-indigo-800 hover:bg-indigo-100'
+                          }`}
+                        >
+                          {presetSec}s
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div>

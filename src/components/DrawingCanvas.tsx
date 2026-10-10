@@ -26,6 +26,7 @@ import {
   Maximize2,
   Move,
   PaintBucket,
+  RotateCw,
 } from 'lucide-react';
 import {
   DrawingBatchPayload,
@@ -75,7 +76,18 @@ const SHAPE_OPTIONS: Array<{ id: ShapeType; label: string; icon: React.ReactNode
   { id: 'arrow', label: 'Seta', icon: <MoveRight className="w-3.5 h-3.5" /> },
 ];
 
-type DragHandleType = 'move' | 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w' | 'create_shape';
+type DragHandleType =
+  | 'move'
+  | 'rotate'
+  | 'nw'
+  | 'ne'
+  | 'sw'
+  | 'se'
+  | 'n'
+  | 's'
+  | 'e'
+  | 'w'
+  | 'create_shape';
 
 export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(
   (
@@ -171,12 +183,18 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         const cy = shape.y * LOGICAL_HEIGHT;
         const w = shape.w * LOGICAL_WIDTH;
         const h = shape.h * LOGICAL_HEIGHT;
+        const rotRad = ((shape.rotation ?? 0) * Math.PI) / 180;
         const left = cx - w / 2;
         const top = cy - h / 2;
         const right = cx + w / 2;
         const bottom = cy + h / 2;
 
         ctx.save();
+        if (rotRad !== 0) {
+          ctx.translate(cx, cy);
+          ctx.rotate(rotRad);
+          ctx.translate(-cx, -cy);
+        }
         ctx.strokeStyle = strokeColor;
         ctx.fillStyle = strokeColor;
         ctx.lineWidth = strokeWidth;
@@ -397,15 +415,39 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         const cy = sh.y * LOGICAL_HEIGHT;
         const w = sh.w * LOGICAL_WIDTH;
         const h = sh.h * LOGICAL_HEIGHT;
+        const rotRad = ((sh.rotation ?? 0) * Math.PI) / 180;
         const left = cx - w / 2;
         const top = cy - h / 2;
 
         ctx.save();
+        if (rotRad !== 0) {
+          ctx.translate(cx, cy);
+          ctx.rotate(rotRad);
+          ctx.translate(-cx, -cy);
+        }
+
         ctx.strokeStyle = '#D97706';
         ctx.lineWidth = 2;
         ctx.setLineDash([6, 4]);
         ctx.strokeRect(left - 6, top - 6, w + 12, h + 12);
         ctx.setLineDash([]);
+
+        // Rotation handle stem + knob above top center
+        const rotKnobY = top - 34;
+        ctx.beginPath();
+        ctx.moveTo(cx, top - 6);
+        ctx.lineTo(cx, rotKnobY);
+        ctx.strokeStyle = '#4F46E5';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(cx, rotKnobY, 9, 0, Math.PI * 2);
+        ctx.fillStyle = '#4F46E5';
+        ctx.fill();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.stroke();
 
         const handles = [
           { x: left - 6, y: top - 6 },
@@ -672,6 +714,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         y: 0.5,
         w: 0.24,
         h: 0.34,
+        rotation: 0,
         filled: shapeFilled,
       };
 
@@ -679,25 +722,52 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       upsertShapeGeometry(newId, geom, color, brushWidth, true);
     };
 
+    // Transform a normalized pointer coordinate into the shape's unrotated local space
+    const toShapeLocalPoint = (pt: PointNormalized, sh: ShapeGeometry): PointNormalized => {
+      const rotDeg = sh.rotation ?? 0;
+      if (!rotDeg) return pt;
+      const rad = (-rotDeg * Math.PI) / 180;
+      const dxPx = (pt.x - sh.x) * LOGICAL_WIDTH;
+      const dyPx = (pt.y - sh.y) * LOGICAL_HEIGHT;
+      const localDxPx = dxPx * Math.cos(rad) - dyPx * Math.sin(rad);
+      const localDyPx = dxPx * Math.sin(rad) + dyPx * Math.cos(rad);
+      return {
+        x: sh.x + localDxPx / LOGICAL_WIDTH,
+        y: sh.y + localDyPx / LOGICAL_HEIGHT,
+      };
+    };
+
     const detectHandleHit = (pt: PointNormalized, sh: ShapeGeometry): DragHandleType | null => {
-      const halfW = sh.w / 2 + 0.008;
-      const halfH = sh.h / 2 + 0.012;
+      const localPt = toShapeLocalPoint(pt, sh);
+      const halfW = sh.w / 2 + 6 / LOGICAL_WIDTH;
+      const halfH = sh.h / 2 + 6 / LOGICAL_HEIGHT;
       const left = sh.x - halfW;
       const right = sh.x + halfW;
       const top = sh.y - halfH;
       const bottom = sh.y + halfH;
-      const tol = 0.036;
 
-      if (Math.hypot(pt.x - left, pt.y - top) <= tol) return 'nw';
-      if (Math.hypot(pt.x - right, pt.y - top) <= tol) return 'ne';
-      if (Math.hypot(pt.x - left, pt.y - bottom) <= tol) return 'sw';
-      if (Math.hypot(pt.x - right, pt.y - bottom) <= tol) return 'se';
-      if (Math.hypot(pt.x - sh.x, pt.y - top) <= tol) return 'n';
-      if (Math.hypot(pt.x - sh.x, pt.y - bottom) <= tol) return 's';
-      if (Math.hypot(pt.x - right, pt.y - sh.y) <= tol) return 'e';
-      if (Math.hypot(pt.x - left, pt.y - sh.y) <= tol) return 'w';
+      // Check rotation knob above top-center (34px above top edge)
+      const rotKnobY = sh.y - sh.h / 2 - 34 / LOGICAL_HEIGHT;
+      const rotDistPx = Math.hypot(
+        (localPt.x - sh.x) * LOGICAL_WIDTH,
+        (localPt.y - rotKnobY) * LOGICAL_HEIGHT
+      );
+      if (rotDistPx <= 20) return 'rotate';
 
-      if (pt.x >= left && pt.x <= right && pt.y >= top && pt.y <= bottom) {
+      const hitDistPx = (hx: number, hy: number) =>
+        Math.hypot((localPt.x - hx) * LOGICAL_WIDTH, (localPt.y - hy) * LOGICAL_HEIGHT);
+
+      const handleTolPx = 18;
+      if (hitDistPx(left, top) <= handleTolPx) return 'nw';
+      if (hitDistPx(right, top) <= handleTolPx) return 'ne';
+      if (hitDistPx(left, bottom) <= handleTolPx) return 'sw';
+      if (hitDistPx(right, bottom) <= handleTolPx) return 'se';
+      if (hitDistPx(sh.x, top) <= handleTolPx) return 'n';
+      if (hitDistPx(sh.x, bottom) <= handleTolPx) return 's';
+      if (hitDistPx(right, sh.y) <= handleTolPx) return 'e';
+      if (hitDistPx(left, sh.y) <= handleTolPx) return 'w';
+
+      if (localPt.x >= left && localPt.x <= right && localPt.y >= top && localPt.y <= bottom) {
         return 'move';
       }
       return null;
@@ -752,35 +822,31 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
             initialShape: { ...currentActiveShape.shape },
           };
           return;
+        } else {
+          // Clicking outside the active shape automatically fixes/stamps it in place!
+          upsertShapeGeometry(
+            currentActiveShape.id,
+            currentActiveShape.shape,
+            currentActiveShape.color,
+            currentActiveShape.width,
+            true
+          );
+          setActiveShapeId(null);
+          if (tool === 'shape') {
+            return;
+          }
         }
       }
 
       if (tool === 'shape') {
-        for (let i = strokesRef.current.length - 1; i >= 0; i--) {
-          const s = strokesRef.current[i];
-          if (s.tool === 'shape' && s.shape) {
-            const hit = detectHandleHit(pt, s.shape);
-            if (hit) {
-              setActiveShapeId(s.id);
-              isPointerDownRef.current = true;
-              shapeDragStateRef.current = {
-                strokeId: s.id,
-                handle: 'move',
-                startPt: pt,
-                initialShape: { ...s.shape },
-              };
-              return;
-            }
-          }
-        }
-
         const newId = `shp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
         const initialGeom: ShapeGeometry = {
           shapeType: selectedShapeType,
           x: pt.x,
           y: pt.y,
-          w: 0.08,
-          h: 0.12,
+          w: 0.14,
+          h: 0.2,
+          rotation: 0,
           filled: shapeFilled,
         };
         setActiveShapeId(newId);
@@ -846,30 +912,52 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
         if (handle === 'move') {
           next.x = Math.max(0.02, Math.min(0.98, Number((initialShape.x + dx).toFixed(4))));
           next.y = Math.max(0.02, Math.min(0.98, Number((initialShape.y + dy).toFixed(4))));
+        } else if (handle === 'rotate') {
+          const cxPx = initialShape.x * LOGICAL_WIDTH;
+          const cyPx = initialShape.y * LOGICAL_HEIGHT;
+          const px = pt.x * LOGICAL_WIDTH;
+          const py = pt.y * LOGICAL_HEIGHT;
+          const rawDeg = (Math.atan2(py - cyPx, px - cxPx) * 180) / Math.PI + 90;
+          next.rotation = Math.round(((rawDeg % 360) + 360) % 360);
         } else if (handle === 'create_shape') {
-          const minX = Math.min(startPt.x, pt.x);
-          const maxX = Math.max(startPt.x, pt.x);
-          const minY = Math.min(startPt.y, pt.y);
-          const maxY = Math.max(startPt.y, pt.y);
-          next.w = Number(Math.max(0.04, maxX - minX).toFixed(4));
-          next.h = Number(Math.max(0.06, maxY - minY).toFixed(4));
-          next.x = Number((minX + next.w / 2).toFixed(4));
-          next.y = Number((minY + next.h / 2).toFixed(4));
+          const dist = Math.hypot(dx, dy);
+          if (dist < 0.015) {
+            // Small click without dragging: keep default comfortable size centered at click
+            next.x = startPt.x;
+            next.y = startPt.y;
+          } else {
+            const minX = Math.min(startPt.x, pt.x);
+            const maxX = Math.max(startPt.x, pt.x);
+            const minY = Math.min(startPt.y, pt.y);
+            const maxY = Math.max(startPt.y, pt.y);
+            next.w = Number(Math.max(0.05, maxX - minX).toFixed(4));
+            next.h = Number(Math.max(0.07, maxY - minY).toFixed(4));
+            next.x = Number((minX + next.w / 2).toFixed(4));
+            next.y = Number((minY + next.h / 2).toFixed(4));
+          }
         } else {
+          // Project drag delta onto the shape's local axes so resizing works smoothly even when rotated
+          const localPt = toShapeLocalPoint(pt, initialShape);
+          const localStart = toShapeLocalPoint(startPt, initialShape);
+          const ldx = localPt.x - localStart.x;
+          const ldy = localPt.y - localStart.y;
+
           let left = initialShape.x - initialShape.w / 2;
           let right = initialShape.x + initialShape.w / 2;
           let top = initialShape.y - initialShape.h / 2;
           let bottom = initialShape.y + initialShape.h / 2;
 
-          if (handle.includes('w')) left = Math.min(right - 0.03, left + dx);
-          if (handle.includes('e')) right = Math.max(left + 0.03, right + dx);
-          if (handle.includes('n')) top = Math.min(bottom - 0.04, top + dy);
-          if (handle.includes('s')) bottom = Math.max(top + 0.04, bottom + dy);
+          if (handle.includes('w')) left = Math.min(right - 0.03, left + ldx);
+          if (handle.includes('e')) right = Math.max(left + 0.03, right + ldx);
+          if (handle.includes('n')) top = Math.min(bottom - 0.04, top + ldy);
+          if (handle.includes('s')) bottom = Math.max(top + 0.04, bottom + ldy);
 
           next.w = Number(Math.max(0.03, Math.min(0.98, right - left)).toFixed(4));
           next.h = Number(Math.max(0.04, Math.min(0.98, bottom - top)).toFixed(4));
-          next.x = Number(Math.max(0.02, Math.min(0.98, left + next.w / 2)).toFixed(4));
-          next.y = Number(Math.max(0.02, Math.min(0.98, top + next.h / 2)).toFixed(4));
+          if (!(initialShape.rotation ?? 0)) {
+            next.x = Number(Math.max(0.02, Math.min(0.98, left + next.w / 2)).toFixed(4));
+            next.y = Number(Math.max(0.02, Math.min(0.98, top + next.h / 2)).toFixed(4));
+          }
         }
 
         upsertShapeGeometry(strokeId, next, undefined, undefined, false);
@@ -1255,6 +1343,55 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 {activeShapeStroke && activeShapeStroke.shape && (
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-1.5">
+                      <RotateCw className="w-3.5 h-3.5 text-indigo-700" />
+                      <span className="text-[11px] font-bold text-indigo-950">
+                        Girar ({Math.round(activeShapeStroke.shape.rotation ?? 0)}°)
+                      </span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={360}
+                        value={Math.round(activeShapeStroke.shape.rotation ?? 0)}
+                        onChange={(e) => {
+                          const newRot = Number(e.target.value);
+                          upsertShapeGeometry(
+                            activeShapeStroke.id,
+                            {
+                              ...activeShapeStroke.shape!,
+                              rotation: newRot,
+                            },
+                            undefined,
+                            undefined,
+                            true
+                          );
+                        }}
+                        className="w-24 accent-indigo-600 cursor-pointer h-1.5"
+                        title="Arraste para girar a forma em 360° ou use a alça roxa acima da forma"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = activeShapeStroke.shape?.rotation ?? 0;
+                          const nextRot = (cur + 45) % 360;
+                          upsertShapeGeometry(
+                            activeShapeStroke.id,
+                            {
+                              ...activeShapeStroke.shape!,
+                              rotation: nextRot,
+                            },
+                            undefined,
+                            undefined,
+                            true
+                          );
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-900 text-[10px] font-extrabold cursor-pointer"
+                        title="Girar +45°"
+                      >
+                        +45°
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
                       <span className="text-[11px] font-bold text-indigo-950">Largura</span>
                       <input
                         type="range"
@@ -1274,7 +1411,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                             true
                           );
                         }}
-                        className="w-20 accent-indigo-600 cursor-pointer h-1.5"
+                        className="w-16 accent-indigo-600 cursor-pointer h-1.5"
                       />
                     </div>
 
@@ -1298,16 +1435,17 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                             true
                           );
                         }}
-                        className="w-20 accent-indigo-600 cursor-pointer h-1.5"
+                        className="w-16 accent-indigo-600 cursor-pointer h-1.5"
                       />
                     </div>
 
                     <button
                       type="button"
                       onClick={() => setActiveShapeId(null)}
+                      title="Você também pode simplesmente clicar fora da forma para fixá-la"
                       className="px-2.5 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold cursor-pointer"
                     >
-                      Fixar
+                      Fixar (ou clique fora)
                     </button>
                   </div>
                 )}

@@ -165,10 +165,11 @@ function sanitizeSettings(partial: Partial<RoomSettings>, current?: RoomSettings
     chatEnabled: true,
   };
 
-  const validDurations: RoundDuration[] = [45, 60, 90, 120];
-  const duration = validDurations.includes(partial.roundDuration as RoundDuration)
-    ? (partial.roundDuration as RoundDuration)
-    : base.roundDuration;
+  const rawDuration = Number(partial.roundDuration);
+  const duration: RoundDuration =
+    typeof partial.roundDuration === 'number' && Number.isFinite(rawDuration)
+      ? Math.max(10, Math.min(600, Math.round(rawDuration)))
+      : base.roundDuration;
 
   const roundsPerPlayer =
     partial.roundsPerPlayer === 1 || partial.roundsPerPlayer === 2 || partial.roundsPerPlayer === 3
@@ -203,7 +204,7 @@ function sanitizeSettings(partial: Partial<RoomSettings>, current?: RoomSettings
       : base.scoringMode;
 
   return {
-    roomName: sanitizeText(partial.roomName ?? base.roomName, 32) || 'Arena 32 Players',
+    roomName: sanitizeText(partial.roomName ?? base.roomName, 45) || 'Sala SENAI Phone',
     maxPlayers,
     roundDuration: duration,
     roundsPerPlayer,
@@ -1638,12 +1639,18 @@ async function startServer() {
             return;
           }
 
+          const rawRot = Number(payload.shape.rotation ?? 0);
+          const normRot = Number.isFinite(rawRot)
+            ? Number((((rawRot % 360) + 360) % 360).toFixed(2))
+            : 0;
+
           const shapeGeom: ShapeGeometry = {
             shapeType: sType,
             x: Math.max(0, Math.min(1, Number(rawX.toFixed(4)))),
             y: Math.max(0, Math.min(1, Number(rawY.toFixed(4)))),
             w: Math.max(0.02, Math.min(1, Number(rawW.toFixed(4)))),
             h: Math.max(0.02, Math.min(1, Number(rawH.toFixed(4)))),
+            rotation: normRot,
             filled: Boolean(payload.shape.filled),
           };
 

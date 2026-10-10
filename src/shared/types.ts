@@ -14,7 +14,7 @@ export type ThemeMode = 'drawer_chooses' | 'host_chooses' | 'random';
 export type DifficultyLevel = 'easy' | 'medium' | 'mixed';
 export type HintType = 'levels' | 'contextual' | 'letters';
 export type ScoringMode = 'competitive' | 'casual';
-export type RoundDuration = 45 | 60 | 90 | 120;
+export type RoundDuration = number;
 
 export type ShapeType =
   | 'rect'
@@ -88,6 +88,7 @@ export interface ShapeGeometry {
   y: number; // center y normalized (0..1)
   w: number; // width normalized (0.02..1)
   h: number; // height normalized (0.02..1)
+  rotation?: number; // rotation angle in degrees (0..360)
   filled: boolean;
 }
 
