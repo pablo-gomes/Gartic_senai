@@ -56,8 +56,8 @@ interface DrawingCanvasProps {
   batchIntervalMs?: number;
 }
 
-const LOGICAL_WIDTH = 800;
-const LOGICAL_HEIGHT = 420;
+const LOGICAL_WIDTH = 960;
+const LOGICAL_HEIGHT = 560;
 const DEFAULT_BATCH_INTERVAL_MS = 50; // 20 updates per second max (Rule 6)
 const MAX_POINTS_PER_BATCH = 32; // Compact batch limit (Rule 5 & 12)
 
@@ -919,23 +919,22 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       : DRAWING_PALETTE;
 
     return (
-      <div className="flex flex-col gap-2.5 w-full">
-        {/* TOP DOCKED STUDIO TOOLBAR FOR DRAWER — Always visible right above the canvas without scrolling! */}
+      <div className="flex flex-col gap-2 w-full">
+        {/* CLEAN, COMPACT STUDIO TOOLBAR FOR DRAWER */}
         {canInteract && (
-          <div className="bg-white border-2 border-indigo-200 rounded-2xl p-2.5 flex flex-col gap-2 shadow-md">
-            {/* Bar 1: Tools + Colors + Thickness + History in a single compact row */}
+          <div className="bg-white border-2 border-indigo-200 rounded-2xl px-3 py-2 flex flex-col gap-2 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               {/* Primary Tool Selector */}
-              <div className="flex items-center gap-1 bg-indigo-50/90 p-1 rounded-xl border border-indigo-200/80">
+              <div className="flex items-center gap-1 bg-indigo-50 p-1 rounded-xl">
                 <button
                   type="button"
                   onClick={() => {
                     setTool('brush');
                     setActiveShapeId(null);
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
                     tool === 'brush'
-                      ? 'bg-indigo-600 text-white shadow-sm scale-[1.02]'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
                       : 'text-indigo-900 hover:bg-indigo-100'
                   }`}
                 >
@@ -946,9 +945,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 <button
                   type="button"
                   onClick={() => setTool('shape')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
                     tool === 'shape'
-                      ? 'bg-indigo-600 text-white shadow-sm scale-[1.02]'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
                       : 'text-indigo-900 hover:bg-indigo-100'
                   }`}
                 >
@@ -962,9 +961,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                     setTool('eraser');
                     setActiveShapeId(null);
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
                     tool === 'eraser'
-                      ? 'bg-indigo-600 text-white shadow-sm scale-[1.02]'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
                       : 'text-indigo-900 hover:bg-indigo-100'
                   }`}
                 >
@@ -973,9 +972,9 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 </button>
               </div>
 
-              {/* Color Palette Inline */}
+              {/* Color Palette */}
               <div
-                className="flex flex-wrap items-center gap-1.5 bg-indigo-50/90 px-2.5 py-1.5 rounded-xl border border-indigo-200/80"
+                className="flex flex-wrap items-center gap-1.5 px-2 py-1"
                 role="radiogroup"
                 aria-label="Paleta de cores"
               >
@@ -1004,8 +1003,8 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                       title={swatch.name}
                       className={`relative w-6 h-6 rounded-full border-2 transition-transform flex items-center justify-center cursor-pointer ${
                         isSelected
-                          ? 'border-indigo-950 scale-120 ring-2 ring-amber-400 z-10 shadow-sm'
-                          : 'border-white hover:scale-110 shadow-2xs'
+                          ? 'border-indigo-950 scale-120 ring-2 ring-amber-400 z-10'
+                          : 'border-slate-200 hover:scale-110'
                       }`}
                       style={{ backgroundColor: swatch.hex }}
                     >
@@ -1022,216 +1021,207 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 <button
                   type="button"
                   onClick={() => setHighContrast((prev) => !prev)}
-                  className={`p-1 rounded-lg text-xs border transition-colors cursor-pointer ${
+                  className={`p-1.5 rounded-lg text-xs border transition-colors cursor-pointer ${
                     highContrast
                       ? 'bg-amber-400 border-amber-600 text-indigo-950'
-                      : 'bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                      : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
                   }`}
-                  title="Alternar paleta de alto contraste"
+                  title="Alternar alto contraste"
                 >
                   <Contrast className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              {/* Stroke Width Selector */}
-              <div
-                className="flex items-center gap-1 bg-indigo-50/90 p-1 rounded-xl border border-indigo-200/80"
-                role="group"
-                aria-label="Espessura do traço"
-              >
-                {BRUSH_WIDTHS.map((bw) => {
-                  const active = brushWidth === bw.size;
-                  return (
-                    <button
-                      key={bw.id}
-                      type="button"
-                      onClick={() => {
-                        setBrushWidth(bw.size);
-                        if (activeShapeStroke && activeShapeStroke.shape) {
-                          upsertShapeGeometry(
-                            activeShapeStroke.id,
-                            activeShapeStroke.shape,
-                            undefined,
-                            bw.size,
-                            true
-                          );
-                        }
-                      }}
-                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                        active
-                          ? 'bg-amber-400 text-indigo-950 border border-amber-500 shadow-2xs'
-                          : 'text-indigo-800 hover:bg-indigo-100'
-                      }`}
-                      title={`Espessura: ${bw.label}`}
-                    >
-                      <span
-                        className="rounded-full bg-current inline-block"
-                        style={{
-                          width: Math.max(4, Math.min(12, bw.size * 0.5)),
-                          height: Math.max(4, Math.min(12, bw.size * 0.5)),
+              {/* Stroke Width & Undo/Redo/Clear */}
+              <div className="flex items-center gap-2">
+                <div
+                  className="flex items-center gap-1 bg-indigo-50 p-1 rounded-xl"
+                  role="group"
+                  aria-label="Espessura do traço"
+                >
+                  {BRUSH_WIDTHS.map((bw) => {
+                    const active = brushWidth === bw.size;
+                    return (
+                      <button
+                        key={bw.id}
+                        type="button"
+                        onClick={() => {
+                          setBrushWidth(bw.size);
+                          if (activeShapeStroke && activeShapeStroke.shape) {
+                            upsertShapeGeometry(
+                              activeShapeStroke.id,
+                              activeShapeStroke.shape,
+                              undefined,
+                              bw.size,
+                              true
+                            );
+                          }
                         }}
-                      />
-                      {!compactMode && <span className="hidden sm:inline">{bw.label}</span>}
-                    </button>
-                  );
-                })}
-              </div>
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
+                          active
+                            ? 'bg-amber-400 text-indigo-950 shadow-2xs'
+                            : 'text-indigo-800 hover:bg-indigo-100'
+                        }`}
+                        title={`Espessura: ${bw.label}`}
+                      >
+                        <span
+                          className="rounded-full bg-current inline-block"
+                          style={{
+                            width: Math.max(4, Math.min(14, bw.size * 0.55)),
+                            height: Math.max(4, Math.min(14, bw.size * 0.55)),
+                          }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
 
-              {/* Undo / Redo / Clear */}
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={onUndo}
-                  disabled={!hasStrokes}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40 disabled:pointer-events-none text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors cursor-pointer"
-                  title="Desfazer (Ctrl+Z)"
-                >
-                  <Undo2 className="w-3.5 h-3.5" />
-                  <span className="hidden xl:inline">Desfazer</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={onRedo}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 text-xs font-bold border border-indigo-200 transition-colors cursor-pointer"
-                  title="Refazer (Ctrl+Y)"
-                >
-                  <Redo2 className="w-3.5 h-3.5" />
-                  <span className="hidden xl:inline">Refazer</span>
-                </button>
-
-                {!confirmClear ? (
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => setConfirmClear(true)}
+                    onClick={onUndo}
                     disabled={!hasStrokes}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 disabled:opacity-40 disabled:pointer-events-none text-rose-700 text-xs font-bold border border-rose-200 transition-colors cursor-pointer"
-                    title="Limpar todo o desenho"
+                    className="p-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40 disabled:pointer-events-none text-indigo-900 transition-colors cursor-pointer"
+                    title="Desfazer (Ctrl+Z)"
+                    aria-label="Desfazer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Limpar</span>
+                    <Undo2 className="w-4 h-4" />
                   </button>
-                ) : (
-                  <div className="flex items-center gap-1 bg-rose-100 border border-rose-300 rounded-xl px-2 py-1">
-                    <span className="text-[11px] text-rose-900 font-bold whitespace-nowrap">
-                      Limpar folha?
-                    </span>
+                  <button
+                    type="button"
+                    onClick={onRedo}
+                    className="p-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 transition-colors cursor-pointer"
+                    title="Refazer (Ctrl+Y)"
+                    aria-label="Refazer"
+                  >
+                    <Redo2 className="w-4 h-4" />
+                  </button>
+
+                  {!confirmClear ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        strokesRef.current = [];
-                        setHasStrokes(false);
-                        setActiveShapeId(null);
-                        setConfirmClear(false);
-                        redrawAllFromRef();
-                        onClear();
-                      }}
-                      className="px-2 py-0.5 rounded-md bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
+                      onClick={() => setConfirmClear(true)}
+                      disabled={!hasStrokes}
+                      className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 disabled:opacity-40 disabled:pointer-events-none text-rose-600 transition-colors cursor-pointer"
+                      title="Limpar todo o desenho"
+                      aria-label="Limpar desenho"
                     >
-                      Sim
+                      <Trash2 className="w-4 h-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmClear(false)}
-                      className="px-2 py-0.5 rounded-md bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer"
-                    >
-                      Não
-                    </button>
-                  </div>
-                )}
+                  ) : (
+                    <div className="flex items-center gap-1 bg-rose-100 border border-rose-300 rounded-xl px-2 py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          strokesRef.current = [];
+                          setHasStrokes(false);
+                          setActiveShapeId(null);
+                          setConfirmClear(false);
+                          redrawAllFromRef();
+                          onClear();
+                        }}
+                        className="px-2 py-0.5 rounded-md bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
+                      >
+                        Limpar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmClear(false)}
+                        className="px-2 py-0.5 rounded-md bg-white text-slate-700 text-xs font-semibold cursor-pointer"
+                      >
+                        Não
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Bar 2: GEOMETRIC SHAPES & SIZE CONTROLS (Right above the canvas!) */}
+            {/* Secondary Bar: Geometric Shapes & Size Controls (only visible when using/editing shapes) */}
             {(tool === 'shape' || (activeShapeStroke && activeShapeStroke.shape)) && (
-              <div className="bg-amber-50/90 border-2 border-amber-300 rounded-xl px-3 py-2 flex flex-col gap-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-1">
-                    {SHAPE_OPTIONS.map((sh) => {
-                      const isSelected = selectedShapeType === sh.id && tool === 'shape';
-                      return (
-                        <button
-                          key={sh.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedShapeType(sh.id);
-                            setTool('shape');
-                            if (activeShapeStroke && activeShapeStroke.shape) {
-                              upsertShapeGeometry(
-                                activeShapeStroke.id,
-                                {
-                                  ...activeShapeStroke.shape,
-                                  shapeType: sh.id,
-                                },
-                                undefined,
-                                undefined,
-                                true
-                              );
-                            }
-                          }}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                            isSelected
-                              ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs'
-                              : 'bg-white text-indigo-900 border-amber-300 hover:bg-amber-100'
-                          }`}
-                        >
-                          {sh.icon}
-                          <span>{sh.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+              <div className="bg-amber-50/90 border border-amber-300 rounded-xl px-3 py-1.5 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1">
+                  {SHAPE_OPTIONS.map((sh) => {
+                    const isSelected = selectedShapeType === sh.id && tool === 'shape';
+                    return (
+                      <button
+                        key={sh.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedShapeType(sh.id);
+                          setTool('shape');
+                          if (activeShapeStroke && activeShapeStroke.shape) {
+                            upsertShapeGeometry(
+                              activeShapeStroke.id,
+                              {
+                                ...activeShapeStroke.shape,
+                                shapeType: sh.id,
+                              },
+                              undefined,
+                              undefined,
+                              true
+                            );
+                          }
+                        }}
+                        title={sh.label}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white border-indigo-700'
+                            : 'bg-white text-indigo-900 border-amber-300 hover:bg-amber-100'
+                        }`}
+                      >
+                        {sh.icon}
+                        <span className="hidden sm:inline">{sh.label}</span>
+                      </button>
+                    );
+                  })}
 
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const nextFilled = !shapeFilled;
-                        setShapeFilled(nextFilled);
-                        if (activeShapeStroke && activeShapeStroke.shape) {
-                          upsertShapeGeometry(
-                            activeShapeStroke.id,
-                            {
-                              ...activeShapeStroke.shape,
-                              filled: nextFilled,
-                            },
-                            undefined,
-                            undefined,
-                            true
-                          );
-                        }
-                      }}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                        (activeShapeStroke?.shape?.filled ?? shapeFilled)
-                          ? 'bg-emerald-500 text-white border-emerald-600'
-                          : 'bg-white text-indigo-900 border-amber-300 hover:bg-amber-100'
-                      }`}
-                    >
-                      <PaintBucket className="w-3.5 h-3.5" />
-                      <span>
-                        {(activeShapeStroke?.shape?.filled ?? shapeFilled)
-                          ? 'Preenchida'
-                          : 'Contorno'}
-                      </span>
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextFilled = !shapeFilled;
+                      setShapeFilled(nextFilled);
+                      if (activeShapeStroke && activeShapeStroke.shape) {
+                        upsertShapeGeometry(
+                          activeShapeStroke.id,
+                          {
+                            ...activeShapeStroke.shape,
+                            filled: nextFilled,
+                          },
+                          undefined,
+                          undefined,
+                          true
+                        );
+                      }
+                    }}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                      (activeShapeStroke?.shape?.filled ?? shapeFilled)
+                        ? 'bg-emerald-500 text-white border-emerald-600'
+                        : 'bg-white text-indigo-900 border-amber-300 hover:bg-amber-100'
+                    }`}
+                  >
+                    <PaintBucket className="w-3.5 h-3.5" />
+                    <span>
+                      {(activeShapeStroke?.shape?.filled ?? shapeFilled)
+                        ? 'Preenchida'
+                        : 'Contorno'}
+                    </span>
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleInsertShapeCenter()}
-                      className="flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-indigo-950 border border-amber-500 font-extrabold text-xs transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Inserir Forma</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleInsertShapeCenter()}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-indigo-950 border border-amber-500 font-extrabold text-xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Inserir</span>
+                  </button>
                 </div>
 
-                {/* Live Size Sliders when a Shape is Selected */}
                 {activeShapeStroke && activeShapeStroke.shape && (
-                  <div className="pt-1.5 border-t border-amber-200 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 flex-1 min-w-[160px]">
-                      <span className="text-[11px] font-bold text-indigo-950 whitespace-nowrap">
-                        Largura ({Math.round(activeShapeStroke.shape.w * 100)}%):
-                      </span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-bold text-indigo-950">Largura</span>
                       <input
                         type="range"
                         min={4}
@@ -1250,14 +1240,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                             true
                           );
                         }}
-                        className="flex-1 accent-indigo-600 cursor-pointer h-1.5"
+                        className="w-20 accent-indigo-600 cursor-pointer h-1.5"
                       />
                     </div>
 
-                    <div className="flex items-center gap-2 flex-1 min-w-[160px]">
-                      <span className="text-[11px] font-bold text-indigo-950 whitespace-nowrap">
-                        Altura ({Math.round(activeShapeStroke.shape.h * 100)}%):
-                      </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-bold text-indigo-950">Altura</span>
                       <input
                         type="range"
                         min={4}
@@ -1276,47 +1264,17 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                             true
                           );
                         }}
-                        className="flex-1 accent-indigo-600 cursor-pointer h-1.5"
+                        className="w-20 accent-indigo-600 cursor-pointer h-1.5"
                       />
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      {[
-                        { label: 'P', w: 0.12, h: 0.18 },
-                        { label: 'M', w: 0.22, h: 0.32 },
-                        { label: 'G', w: 0.36, h: 0.52 },
-                        { label: 'GG', w: 0.55, h: 0.75 },
-                      ].map((preset) => (
-                        <button
-                          key={preset.label}
-                          type="button"
-                          onClick={() =>
-                            upsertShapeGeometry(
-                              activeShapeStroke.id,
-                              {
-                                ...activeShapeStroke.shape!,
-                                w: preset.w,
-                                h: preset.h,
-                              },
-                              undefined,
-                              undefined,
-                              true
-                            )
-                          }
-                          className="px-2 py-0.5 rounded-md bg-white hover:bg-amber-100 text-[11px] font-mono font-bold text-indigo-950 border border-amber-300 cursor-pointer"
-                          title={`Ajustar tamanho para ${preset.label}`}
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => setActiveShapeId(null)}
-                        className="ml-1 px-2.5 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold cursor-pointer"
-                      >
-                        Fixar
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveShapeId(null)}
+                      className="px-2.5 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold cursor-pointer"
+                    >
+                      Fixar
+                    </button>
                   </div>
                 )}
               </div>
@@ -1324,12 +1282,12 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
           </div>
         )}
 
-        {/* Main Artist Sketchbook / Easel Canvas Container */}
+        {/* LARGE, UNOBSTRUCTED DRAWING BOARD (QUADRO DE DESENHO AMPLIADO) */}
         <div
-          className={`relative w-full aspect-[800/420] max-h-[390px] bg-white rounded-3xl overflow-hidden border-4 transition-all ${
+          className={`relative w-full aspect-[960/560] bg-white rounded-3xl overflow-hidden border-4 transition-all ${
             canInteract
-              ? 'border-amber-400 shadow-[0_8px_0_#B45309,0_12px_24px_rgba(30,27,75,0.25)]'
-              : 'border-indigo-200 shadow-[0_6px_0_#312E81,0_10px_20px_rgba(30,27,75,0.2)]'
+              ? 'border-amber-400 shadow-[0_8px_0_#B45309,0_14px_28px_rgba(30,27,75,0.28)]'
+              : 'border-indigo-200 shadow-[0_6px_0_#312E81,0_12px_24px_rgba(30,27,75,0.22)]'
           }`}
         >
           <canvas
@@ -1350,42 +1308,6 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
                 : 'cursor-default'
             }`}
           />
-
-          {canInteract && (
-            <div className="absolute top-3 left-3 pointer-events-none flex items-center gap-1.5 bg-indigo-950/90 text-white px-3 py-1 rounded-xl text-[11px] font-bold shadow-sm">
-              {tool === 'brush' && (
-                <>
-                  <Brush className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Pincel</span>
-                  <span
-                    className="w-3 h-3 rounded-full border border-white inline-block"
-                    style={{ backgroundColor: color }}
-                  />
-                </>
-              )}
-              {tool === 'eraser' && (
-                <>
-                  <Eraser className="w-3.5 h-3.5 text-sky-300" />
-                  <span>Borracha</span>
-                </>
-              )}
-              {tool === 'shape' && (
-                <>
-                  <Maximize2 className="w-3.5 h-3.5 text-emerald-300" />
-                  <span>
-                    Forma ({SHAPE_OPTIONS.find((s) => s.id === selectedShapeType)?.label}) — arraste na folha
-                  </span>
-                </>
-              )}
-            </div>
-          )}
-
-          {canInteract && activeShapeStroke && activeShapeStroke.shape && (
-            <div className="absolute bottom-2.5 left-3 pointer-events-none flex items-center gap-1.5 bg-amber-400 text-indigo-950 px-3 py-1 rounded-xl border border-amber-600 text-[11px] font-bold shadow-sm">
-              <Move className="w-3.5 h-3.5 text-indigo-950 shrink-0" />
-              <span>Arraste para mover ou puxe os cantos para redimensionar</span>
-            </div>
-          )}
         </div>
       </div>
     );

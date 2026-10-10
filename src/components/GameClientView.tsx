@@ -642,17 +642,17 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
   const selectedAvatarMeta = AVATAR_LIST[Math.abs(avatarId || 0) % AVATAR_LIST.length];
 
   // ============================================================================
-  // VIEW 1: ENTRY / JOIN OR CREATE ROOM (PARTY GAME STUDIO HOME)
+  // VIEW 1: ENTRY / JOIN OR CREATE ROOM (CLEAN PARTY STUDIO HOME)
   // ============================================================================
   if (!roomState) {
     return (
-      <div className="w-full max-w-6xl mx-auto py-6 px-4">
+      <div className="w-full max-w-5xl mx-auto py-6 px-4">
         {errorMsg && (
           <div
             role="alert"
-            className="mb-6 flex items-center justify-between gap-3 bg-rose-100 border-3 border-rose-400 text-rose-950 px-5 py-3.5 rounded-2xl text-sm font-bold shadow-lg"
+            className="mb-5 flex items-center justify-between gap-3 bg-rose-100 border-2 border-rose-400 text-rose-950 px-4 py-3 rounded-2xl text-sm font-bold shadow-md"
           >
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -666,217 +666,149 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-stretch">
-          {/* Left Column: Expressive Character Studio & Room Creation */}
-          <div className="lg:col-span-7 game-panel rounded-3xl p-6 sm:p-7 flex flex-col justify-between gap-6">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-extrabold text-indigo-600 mb-1.5 uppercase tracking-wider">
-                <Wand2 className="w-4 h-4 text-amber-500" />
-                <span>Jogo Multiplayer de Desenho &amp; Adivinhação</span>
-              </div>
-              <h1
-                className="text-3xl sm:text-4xl font-extrabold text-indigo-950 tracking-tight mb-2 font-display"
-                style={{ textWrap: 'balance' }}
-              >
-                Escolha seu personagem, solte o traço e divirta-se com a galera!
-              </h1>
-              <p className="text-sm text-indigo-900/75 font-medium leading-relaxed">
-                Personalize seu avatar e apelido abaixo. Use pincel livre, formas geométricas redimensionáveis e dicas de letras em salas para até 32 jogadores!
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-5 bg-indigo-50/75 border-2 border-indigo-200/90 rounded-3xl p-5">
-              {/* Character Pedestal Showcase + Nickname Input */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-5 pb-4 border-b-2 border-indigo-200/70">
-                <div className="flex items-center gap-4 shrink-0">
-                  <div className="relative group">
-                    <div className="p-1.5 rounded-3xl bg-white border-3 border-amber-400 shadow-md">
-                      <AvatarSvg avatarId={avatarId} size={76} />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAvatarId((prev) => (prev + 1 + Math.floor(Math.random() * (AVATAR_LIST.length - 1))) % AVATAR_LIST.length)
-                      }
-                      title="Sortear outro personagem"
-                      className="mt-2 w-full py-1 px-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-indigo-950 border border-amber-500 font-extrabold text-[11px] flex items-center justify-center gap-1 shadow-2xs cursor-pointer transition-transform active:scale-95"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      <span>Sortear</span>
-                    </button>
-                  </div>
-                  <div className="sm:hidden">
-                    <div className="text-base font-extrabold text-indigo-950 font-display">
-                      {selectedAvatarMeta.label}
-                    </div>
-                    <div className="text-xs font-bold text-indigo-600">
-                      {selectedAvatarMeta.role}
-                    </div>
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          {/* Left Column: Character & Nickname + Create Room */}
+          <div className="lg:col-span-7 game-panel rounded-3xl p-6 flex flex-col justify-between gap-5">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 pb-4 border-b-2 border-indigo-100">
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="p-1.5 rounded-3xl bg-indigo-50 border-2 border-amber-400">
+                  <AvatarSvg avatarId={avatarId} size={72} />
                 </div>
-
-                <div className="flex-1 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <label
-                      htmlFor={`nick-${clientSlotId}`}
-                      className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide"
-                    >
-                      Seu Apelido na Partida
-                    </label>
-                    <span className="hidden sm:inline text-xs text-indigo-700 font-bold">
-                      {selectedAvatarMeta.label} · {selectedAvatarMeta.role}
-                    </span>
-                  </div>
-                  <input
-                    id={`nick-${clientSlotId}`}
-                    type="text"
-                    value={nickname}
-                    onChange={(e) => setNickname(e.target.value)}
-                    maxLength={18}
-                    placeholder="Ex: ArtistaSolar"
-                    className="w-full bg-white border-3 border-indigo-200 focus:border-indigo-600 rounded-2xl px-4 py-3 text-base font-extrabold text-indigo-950 placeholder:text-indigo-300 focus:outline-none shadow-2xs transition-colors"
-                  />
-                  <p className="text-xs text-indigo-700/75 font-medium">
-                    Dica: escolha um personagem abaixo que combine com seu estilo!
-                  </p>
-                </div>
-              </div>
-
-              {/* 12 Expressive Cartoon Avatars Grid */}
-              <div>
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide">
-                    Galeria de Personagens ({AVATAR_LIST.length})
-                  </span>
-                </div>
-                <div
-                  className="grid grid-cols-4 sm:grid-cols-6 gap-2.5"
-                  role="radiogroup"
-                  aria-label="Avatares disponíveis"
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAvatarId(
+                      (prev) =>
+                        (prev + 1 + Math.floor(Math.random() * (AVATAR_LIST.length - 1))) %
+                        AVATAR_LIST.length
+                    )
+                  }
+                  title="Sortear outro personagem"
+                  className="py-2 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-indigo-950 border border-amber-500 font-extrabold text-xs flex items-center gap-1 cursor-pointer"
                 >
-                  {AVATAR_LIST.map((av) => {
-                    const selected = avatarId === av.id;
-                    return (
-                      <button
-                        key={av.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={selected}
-                        aria-label={`${av.label} — ${av.role}`}
-                        title={`${av.label} (${av.role})`}
-                        onClick={() => setAvatarId(av.id)}
-                        className={`group p-2 rounded-2xl border-2 transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
-                          selected
-                            ? 'bg-amber-100 border-amber-500 scale-105 shadow-md ring-2 ring-amber-400/50'
-                            : 'bg-white border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50/60'
-                        }`}
-                      >
-                        <AvatarSvg
-                          avatarId={av.id}
-                          size={46}
-                          className="group-hover:scale-105 transition-transform"
-                        />
-                        <span
-                          className={`text-[10px] font-extrabold truncate w-full text-center ${
-                            selected ? 'text-indigo-950' : 'text-indigo-800/80 group-hover:text-indigo-950'
-                          }`}
-                        >
-                          {av.label.split(' ')[0]}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Sortear</span>
+                </button>
+              </div>
+
+              <div className="flex-1 flex flex-col gap-1.5">
+                <label
+                  htmlFor={`nick-${clientSlotId}`}
+                  className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide"
+                >
+                  Seu Apelido
+                </label>
+                <input
+                  id={`nick-${clientSlotId}`}
+                  type="text"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  maxLength={18}
+                  placeholder="Digite seu apelido..."
+                  className="w-full bg-indigo-50/70 border-2 border-indigo-200 focus:border-indigo-600 rounded-2xl px-4 py-2.5 text-base font-extrabold text-indigo-950 placeholder:text-indigo-300 focus:outline-none transition-colors"
+                />
               </div>
             </div>
 
-            <div className="pt-1 flex flex-wrap items-center justify-between gap-4">
-              <div className="text-xs font-bold text-indigo-800/80">
-                Servidor:{' '}
-                <strong className={wsConnected ? 'text-emerald-600' : 'text-amber-600'}>
-                  {wsConnected ? 'Online em Tempo Real' : 'Conectando...'}
-                </strong>
-              </div>
-              <button
-                type="button"
-                onClick={handleCreateRoom}
-                disabled={!wsConnected}
-                className="game-btn-amber px-8 py-4 rounded-2xl disabled:opacity-50 font-extrabold text-base whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-2.5"
-              >
-                <Play className="w-5 h-5 fill-current" />
-                <span>CRIAR NOVA SALA</span>
-              </button>
+            {/* 12 Avatars Grid */}
+            <div
+              className="grid grid-cols-4 sm:grid-cols-6 gap-2"
+              role="radiogroup"
+              aria-label="Avatares disponíveis"
+            >
+              {AVATAR_LIST.map((av) => {
+                const selected = avatarId === av.id;
+                return (
+                  <button
+                    key={av.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={av.label}
+                    title={av.label}
+                    onClick={() => setAvatarId(av.id)}
+                    className={`group p-2 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                      selected
+                        ? 'bg-amber-100 border-amber-500 scale-105 shadow-sm'
+                        : 'bg-indigo-50/40 border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50'
+                    }`}
+                  >
+                    <AvatarSvg avatarId={av.id} size={44} />
+                    <span className="text-[10px] font-extrabold text-indigo-950 truncate w-full text-center">
+                      {av.label.split(' ')[0]}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
+
+            <button
+              type="button"
+              onClick={handleCreateRoom}
+              disabled={!wsConnected}
+              className="game-btn-amber w-full py-3.5 px-6 rounded-2xl disabled:opacity-50 font-extrabold text-base cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Play className="w-5 h-5 fill-current" />
+              <span>CRIAR SALA</span>
+            </button>
           </div>
 
-          {/* Right Column: Join Room with Code & Public Arenas */}
-          <div className="lg:col-span-5 game-panel rounded-3xl p-6 sm:p-7 flex flex-col justify-between gap-6">
-            <div className="flex flex-col gap-5">
-              <div>
-                <h2 className="text-2xl font-extrabold text-indigo-950 mb-1 font-display">
-                  Entrar em uma Sala
-                </h2>
-                <p className="text-xs font-medium text-indigo-800/80">
-                  Tem um código de convite de 6 letras? Digite abaixo ou entre em uma sala aberta!
-                </p>
-              </div>
+          {/* Right Column: Join Room with Code & Open Rooms */}
+          <div className="lg:col-span-5 game-panel rounded-3xl p-6 flex flex-col justify-between gap-5">
+            <div className="flex flex-col gap-4">
+              <h2 className="text-xl font-extrabold text-indigo-950 font-display">
+                Entrar com Código
+              </h2>
 
-              <form onSubmit={(e) => handleJoinRoom(e)} className="flex flex-col gap-3">
-                <div className="flex items-center gap-2.5">
-                  <input
-                    id={`code-${clientSlotId}`}
-                    type="text"
-                    value={joinCodeInput}
-                    onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                    placeholder="CÓDIGO (EX: K7M9P2)"
-                    maxLength={8}
-                    className="flex-1 bg-indigo-50/90 border-3 border-indigo-200 focus:border-emerald-500 rounded-2xl px-4 py-3.5 text-base font-mono font-extrabold uppercase tracking-widest text-indigo-950 placeholder:text-indigo-300 focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!wsConnected}
-                    className="game-btn-emerald px-6 py-3.5 rounded-2xl font-extrabold text-sm whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    ENTRAR
-                  </button>
-                </div>
+              <form onSubmit={(e) => handleJoinRoom(e)} className="flex items-center gap-2">
+                <input
+                  id={`code-${clientSlotId}`}
+                  type="text"
+                  value={joinCodeInput}
+                  onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                  placeholder="CÓDIGO"
+                  maxLength={8}
+                  className="flex-1 bg-indigo-50/80 border-2 border-indigo-200 focus:border-emerald-500 rounded-2xl px-4 py-3 text-base font-mono font-extrabold uppercase tracking-widest text-indigo-950 placeholder:text-indigo-300 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={!wsConnected}
+                  className="game-btn-emerald px-5 py-3 rounded-2xl font-extrabold text-sm whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  ENTRAR
+                </button>
               </form>
 
-              <div className="pt-4 border-t-2 border-indigo-100">
-                <div className="flex items-center justify-between text-xs font-extrabold text-indigo-950 uppercase tracking-wide mb-3">
-                  <span>Salas Abertas Agora</span>
+              <div className="pt-3 border-t-2 border-indigo-100">
+                <div className="flex items-center justify-between text-xs font-extrabold text-indigo-950 uppercase tracking-wide mb-2.5">
+                  <span>Salas Abertas</span>
                   <span className="font-mono text-indigo-600 tabular-nums">
-                    {publicRooms.length} {publicRooms.length === 1 ? 'sala' : 'salas'}
+                    {publicRooms.length}
                   </span>
                 </div>
                 {publicRooms.length === 0 ? (
-                  <div className="bg-indigo-50/80 border-2 border-dashed border-indigo-200 rounded-2xl p-5 text-center text-xs font-medium text-indigo-800/80 leading-relaxed">
-                    Nenhuma sala aberta neste instante. Clique em{' '}
-                    <strong className="text-indigo-950 font-extrabold">CRIAR NOVA SALA</strong> ao lado para começar a festa e convidar os amigos!
+                  <div className="bg-indigo-50/60 border-2 border-dashed border-indigo-200 rounded-2xl p-4 text-center text-xs font-semibold text-indigo-700/80">
+                    Nenhuma sala aberta agora. Crie uma sala ao lado para começar!
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2.5 max-h-64 overflow-y-auto pr-1">
+                  <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
                     {publicRooms.map((r) => (
                       <div
                         key={r.joinCode}
-                        className="flex items-center justify-between gap-3 bg-indigo-50/80 border-2 border-indigo-200/80 hover:border-indigo-400 rounded-2xl px-4 py-3 transition-colors"
+                        className="flex items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-200 rounded-2xl px-3.5 py-2.5"
                       >
                         <div className="min-w-0">
                           <div className="text-sm font-extrabold text-indigo-950 truncate">
                             {r.roomName}
                           </div>
-                          <div className="text-xs font-bold text-indigo-700/80 flex items-center gap-1.5 font-mono tabular-nums">
-                            <span className="text-indigo-600">#{r.joinCode}</span>
-                            <span aria-hidden="true">·</span>
-                            <span>
-                              {r.playerCount}/{r.maxPlayers} jogadores
-                            </span>
+                          <div className="text-xs font-bold text-indigo-600 font-mono tabular-nums">
+                            #{r.joinCode} · {r.playerCount}/{r.maxPlayers}
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={(e) => handleJoinRoom(e, r.joinCode)}
-                          className="game-btn-amber px-4 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap shrink-0 cursor-pointer"
+                          className="game-btn-amber px-3.5 py-1.5 rounded-xl text-xs font-extrabold cursor-pointer"
                         >
                           Jogar
                         </button>
@@ -886,11 +818,6 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 )}
               </div>
             </div>
-
-            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 text-xs text-indigo-950 font-medium leading-relaxed">
-              <strong className="font-extrabold text-amber-900">Quer testar sozinho agora mesmo?</strong> Clique no botão{' '}
-              <span className="font-extrabold underline">Tela Dupla (2 Jogadores)</span> no topo da página para abrir 2 jogadores lado a lado em tempo real!
-            </div>
           </div>
         </div>
       </div>
@@ -898,32 +825,24 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
   }
 
   // ============================================================================
-  // CONNECTED TO A ROOM (PARTY ARENA)
+  // CONNECTED TO A ROOM (CLEAN & SPACIOUS PARTY ARENA)
   // ============================================================================
-  const totalRoundSec = roomState.settings.roundDuration || 60;
-  const timerPercent =
-    round && (roomState.status === 'DRAWING' || roomState.status === 'PAUSED')
-      ? Math.max(0, Math.min(100, Math.round((remainingSeconds / totalRoundSec) * 100)))
-      : 100;
-
   return (
-    <div className="w-full max-w-[1440px] mx-auto px-4 py-3 flex flex-col gap-3">
+    <div className="w-full max-w-[1540px] mx-auto px-3 sm:px-5 py-2.5 flex flex-col gap-2.5">
       {reconnecting && (
         <div
           role="status"
-          className="flex items-center justify-between gap-3 bg-amber-100 border-2 border-amber-400 text-amber-950 px-4 py-2.5 rounded-2xl text-xs font-extrabold shadow-md"
+          className="flex items-center gap-2 bg-amber-100 border-2 border-amber-400 text-amber-950 px-4 py-2 rounded-2xl text-xs font-extrabold"
         >
-          <div className="flex items-center gap-2">
-            <WifiOff className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>Reconectando à sala sem perder seu desenho ou pontuação...</span>
-          </div>
+          <WifiOff className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>Reconectando...</span>
         </div>
       )}
 
       {errorMsg && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 bg-rose-100 border-2 border-rose-400 text-rose-950 px-4 py-2.5 rounded-2xl text-xs font-extrabold shadow-md"
+          className="flex items-center justify-between gap-3 bg-rose-100 border-2 border-rose-400 text-rose-950 px-4 py-2 rounded-2xl text-xs font-extrabold"
         >
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -939,144 +858,170 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
         </div>
       )}
 
-      {/* Compact Party HUD Header */}
-      <div className="game-panel rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <AvatarSvg avatarId={me?.avatarId ?? avatarId} size={42} />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm font-extrabold text-indigo-950 truncate font-display">
-              <span className="truncate">{roomState.settings.roomName}</span>
-              <span aria-hidden="true" className="text-indigo-300">·</span>
-              <span className="font-mono text-xs text-indigo-600">#{roomState.joinCode}</span>
-            </div>
-            <div className="text-xs text-indigo-800/80 font-medium flex items-center gap-1.5">
-              <span>Jogador: <strong className="text-indigo-950 font-extrabold">{me?.nickname}</strong></span>
-              {isHost && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span className="text-amber-600 font-extrabold">Anfitrião</span>
-                </>
-              )}
-              {round && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span className="font-mono font-bold tabular-nums text-indigo-700">
-                    Rodada {round.roundNumber}/{round.totalRounds}
-                  </span>
-                </>
-              )}
-            </div>
+      {/* UNIFIED SINGLE TOP BAR (No double stacked headers!) */}
+      <div className="game-panel rounded-2xl px-3.5 py-2 flex flex-wrap items-center justify-between gap-2.5">
+        {/* Left: Room & Round Info */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <AvatarSvg avatarId={me?.avatarId ?? avatarId} size={36} />
+          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-extrabold text-indigo-950">
+            <span className="font-mono text-indigo-600">#{roomState.joinCode}</span>
+            {round && roomState.status !== 'LOBBY' && (
+              <>
+                <span aria-hidden="true" className="text-indigo-300">·</span>
+                <span className="font-mono tabular-nums">
+                  {round.roundNumber}/{round.totalRounds}
+                </span>
+                {round.themeName && (
+                  <>
+                    <span aria-hidden="true" className="text-indigo-300">·</span>
+                    <span className="text-indigo-700">{round.themeName}</span>
+                  </>
+                )}
+              </>
+            )}
           </div>
         </div>
 
-        {/* Center: Theme & Synchronized Visual Countdown Timer */}
-        {round && roomState.status !== 'LOBBY' && roomState.status !== 'GAME_RESULT' && (
-          <div className="flex items-center gap-3">
-            <div className="text-xs sm:text-sm bg-indigo-50 border-2 border-indigo-200 px-3.5 py-1.5 rounded-xl">
-              <span className="text-indigo-700 font-semibold mr-1.5">Tema:</span>
-              <span className="font-extrabold text-indigo-950">
-                {round.themeName ?? 'Sorteando...'}
-              </span>
-            </div>
+        {/* Center: Word / Interactive Letter Slots + Hint Action (During Drawing) */}
+        {round && (roomState.status === 'DRAWING' || roomState.status === 'PAUSED') && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {isDrawer ? (
+              <div className="flex items-center gap-2 bg-amber-300 border-2 border-amber-500 px-3.5 py-1 rounded-xl">
+                <Eye className="w-4 h-4 text-indigo-950 shrink-0" />
+                <span className="text-sm font-extrabold text-indigo-950 tracking-wide font-display uppercase">
+                  {privateWord?.word ?? '...'}
+                </span>
+              </div>
+            ) : (
+              round.wordMask &&
+              round.wordMask.length > 0 && (
+                <div
+                  className="flex flex-wrap items-center gap-1"
+                  aria-label={`Palavra com ${round.wordLetterCount} letras`}
+                >
+                  {round.wordMask.map((ch, idx) => {
+                    if (ch === ' ') {
+                      return <span key={idx} className="w-2.5 h-7 inline-block" />;
+                    }
+                    if (ch === '-') {
+                      return (
+                        <span
+                          key={idx}
+                          className="w-3 h-7 flex items-center justify-center font-mono font-extrabold text-indigo-400"
+                        >
+                          -
+                        </span>
+                      );
+                    }
+                    const isRevealed = ch !== '_';
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        disabled={isRevealed || roomState.status !== 'DRAWING'}
+                        onClick={() => handleRevealLetterHint(idx)}
+                        title={
+                          isRevealed
+                            ? `Letra ${idx + 1}: ${ch}`
+                            : `Clique para revelar a ${idx + 1}ª letra`
+                        }
+                        className={`w-7 h-8 rounded-lg font-mono text-sm font-extrabold flex items-center justify-center border-2 transition-all ${
+                          isRevealed
+                            ? 'bg-amber-300 border-amber-500 text-indigo-950'
+                            : 'bg-indigo-50 border-indigo-200 hover:border-amber-400 text-indigo-400 hover:text-indigo-950 cursor-pointer'
+                        }`}
+                      >
+                        {isRevealed ? ch : '_'}
+                      </button>
+                    );
+                  })}
+                  <span className="ml-1 text-xs font-mono font-extrabold text-indigo-600">
+                    ({round.wordLetterCount})
+                  </span>
+                </div>
+              )
+            )}
 
-            {(roomState.status === 'DRAWING' ||
+            <button
+              type="button"
+              onClick={() => handleRevealLetterHint()}
+              disabled={roomState.status !== 'DRAWING' || round.unrevealedLettersCount === 0}
+              className="game-btn-amber flex items-center gap-1 px-2.5 py-1 rounded-xl disabled:opacity-40 font-extrabold text-xs cursor-pointer"
+              title="Revelar uma letra da palavra"
+            >
+              <Lightbulb className="w-3.5 h-3.5" />
+              <span>Dica</span>
+            </button>
+
+            {isDrawer && roomState.settings.allowEarlyFinish && (
+              <button
+                type="button"
+                onClick={() => sendWs('round:finish')}
+                className="px-2.5 py-1 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 text-xs font-extrabold cursor-pointer"
+              >
+                Concluir
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Right: Timer & Room Actions */}
+        <div className="flex items-center gap-1.5">
+          {round &&
+            (roomState.status === 'DRAWING' ||
               roomState.status === 'THEME_SELECTION' ||
               roomState.status === 'WORD_REVEAL' ||
               roomState.status === 'PAUSED') && (
               <div
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border-2 font-mono text-sm font-extrabold tabular-nums transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-xl border-2 font-mono text-xs sm:text-sm font-extrabold tabular-nums ${
                   roomState.status === 'PAUSED'
                     ? 'bg-amber-100 border-amber-400 text-amber-900'
                     : remainingSeconds <= 10 && roomState.status === 'DRAWING'
                     ? 'bg-rose-500 border-rose-700 text-white animate-pulse'
                     : 'bg-amber-300 border-amber-500 text-indigo-950'
                 }`}
-                aria-label={`Tempo restante: ${remainingSeconds} segundos`}
               >
-                <Clock className="w-4 h-4 shrink-0" />
-                <span>
-                  {roomState.status === 'PAUSED' ? 'PAUSADO' : `${remainingSeconds}s`}
-                </span>
-                {(roomState.status === 'DRAWING' || roomState.status === 'PAUSED') && (
-                  <div className="hidden sm:block w-14 h-2 bg-white/60 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-300 ${
-                        remainingSeconds <= 10 ? 'bg-rose-900' : 'bg-indigo-700'
-                      }`}
-                      style={{ width: `${timerPercent}%` }}
-                    />
-                  </div>
-                )}
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span>{roomState.status === 'PAUSED' ? 'PAUSA' : `${remainingSeconds}s`}</span>
               </div>
             )}
-          </div>
-        )}
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleCopyInvite}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border-2 border-indigo-200 text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border border-indigo-200 text-xs font-extrabold cursor-pointer"
+            title="Copiar link de convite"
           >
             {copiedInvite ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="text-emerald-700">Link Copiado!</span>
-              </>
+              <Check className="w-3.5 h-3.5 text-emerald-600" />
             ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Convidar (#{roomState.joinCode})</span>
-              </>
+              <Copy className="w-3.5 h-3.5 text-indigo-600" />
             )}
+            <span className="hidden sm:inline">{copiedInvite ? 'Copiado' : 'Convite'}</span>
           </button>
 
           {isHost && (roomState.status === 'DRAWING' || roomState.status === 'PAUSED') && (
             <button
               type="button"
               onClick={() => sendWs('game:pause_toggle')}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 border-2 border-amber-300 text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="p-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 cursor-pointer"
+              title={roomState.status === 'PAUSED' ? 'Retomar' : 'Pausar'}
             >
               {roomState.status === 'PAUSED' ? (
-                <>
-                  <Play className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Retomar</span>
-                </>
+                <Play className="w-3.5 h-3.5 text-emerald-700" />
               ) : (
-                <>
-                  <Pause className="w-3.5 h-3.5 text-amber-800" />
-                  <span>Pausar</span>
-                </>
+                <Pause className="w-3.5 h-3.5 text-amber-800" />
               )}
-            </button>
-          )}
-
-          {onOpenModerationModal && (
-            <button
-              type="button"
-              onClick={() =>
-                onOpenModerationModal({
-                  roomId: roomState.id,
-                  reporterId: playerId,
-                  players: roomState.players,
-                })
-              }
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border-2 border-indigo-200 text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-              title="Moderação e Catálogo"
-            >
-              <Flag className="w-3.5 h-3.5" />
-              {!isSplitScreenChild && <span>Catálogo</span>}
             </button>
           )}
 
           <button
             type="button"
             onClick={handleLeaveRoom}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-200 text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 cursor-pointer"
+            title="Sair da sala"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>Sair</span>
           </button>
         </div>
       </div>
@@ -1505,148 +1450,10 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
       )}
 
       {/* ========================================================================
-          PHASE 4: MAIN DRAWING & GUESSING ARENA (GARTIC-STYLE PARTY STUDIO)
+          PHASE 4: MAIN DRAWING & GUESSING ARENA (EXPANDED CANVAS + CLEAN SIDEBAR)
          ======================================================================== */}
       {(roomState.status === 'DRAWING' || roomState.status === 'PAUSED') && round && (
         <div className="flex flex-col gap-2.5">
-          {/* Top Word Showcase & Interactive Letter Hint Tiles */}
-          <div className="game-panel rounded-2xl px-4 py-2.5 flex flex-col gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2.5">
-              <div className="flex flex-wrap items-center gap-2.5">
-                {isDrawer ? (
-                  <div className="flex items-center gap-2 bg-amber-300 border-2 border-amber-500 px-3.5 py-1.5 rounded-xl shadow-2xs">
-                    <Eye className="w-4 h-4 text-indigo-950 shrink-0" />
-                    <span className="text-xs text-indigo-900 font-bold">Desenhe:</span>
-                    <span className="text-sm sm:text-base font-extrabold text-indigo-950 tracking-wide font-display uppercase">
-                      {privateWord?.word ?? '...'}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 bg-indigo-50 border-2 border-indigo-200 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-900">
-                    <span>Artista da vez:</span>
-                    <strong className="text-indigo-950 font-extrabold">{round.drawerNickname}</strong>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-1.5 text-xs text-indigo-900 font-mono font-bold tabular-nums bg-indigo-50 border-2 border-indigo-200 px-3 py-1.5 rounded-xl">
-                  <span className="font-extrabold text-indigo-700">
-                    {round.wordLetterCount} LETRAS
-                  </span>
-                  <span aria-hidden="true" className="text-indigo-300">·</span>
-                  <span>
-                    {round.wordLetterCount - round.unrevealedLettersCount}/{round.wordLetterCount} reveladas
-                  </span>
-                </div>
-
-                {/* Inline Interactive Letter Slots (Click to Reveal!) */}
-                {round.wordMask && round.wordMask.length > 0 && (
-                  <div
-                    className="flex flex-wrap items-center gap-1.5 ml-1"
-                    aria-label={`Estrutura da palavra com ${round.wordLetterCount} letras`}
-                  >
-                    {round.wordMask.map((ch, idx) => {
-                      if (ch === ' ') {
-                        return (
-                          <span
-                            key={idx}
-                            className="w-3 h-8 inline-block"
-                            aria-label="Espaço entre palavras"
-                          />
-                        );
-                      }
-                      if (ch === '-') {
-                        return (
-                          <span
-                            key={idx}
-                            className="w-4 h-8 flex items-center justify-center font-mono font-extrabold text-indigo-400"
-                          >
-                            -
-                          </span>
-                        );
-                      }
-                      const isRevealed = ch !== '_';
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          disabled={isRevealed || roomState.status !== 'DRAWING'}
-                          onClick={() => handleRevealLetterHint(idx)}
-                          title={
-                            isRevealed
-                              ? `Letra ${idx + 1}: ${ch}`
-                              : `Clique para revelar a ${idx + 1}ª letra como dica`
-                          }
-                          className={`w-8 h-9 rounded-xl font-mono text-sm font-extrabold flex items-center justify-center border-2 border-b-4 transition-all ${
-                            isRevealed
-                              ? 'bg-amber-300 border-amber-500 text-indigo-950 shadow-2xs scale-105'
-                              : 'bg-indigo-50 border-indigo-300 hover:border-amber-500 hover:bg-amber-50 text-indigo-400 hover:text-indigo-950 cursor-pointer'
-                          }`}
-                        >
-                          {isRevealed ? ch : '?'}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Right: Unlimited Reveal Letter Hint Button + Contextual Hint + Finish */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleRevealLetterHint()}
-                  disabled={
-                    roomState.status !== 'DRAWING' || round.unrevealedLettersCount === 0
-                  }
-                  className="game-btn-amber flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl disabled:opacity-40 font-extrabold text-xs whitespace-nowrap shrink-0 cursor-pointer"
-                  title="Clique quantas vezes quiser para revelar letras da palavra sorteada!"
-                >
-                  <Lightbulb className="w-3.5 h-3.5" />
-                  <span>
-                    {round.unrevealedLettersCount === 0
-                      ? 'Todas Reveladas'
-                      : `Dica de Letra (${round.unrevealedLettersCount})`}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleRevealContextHint}
-                  disabled={roomState.status !== 'DRAWING'}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40 text-indigo-900 font-extrabold text-xs border-2 border-indigo-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                  title="Liberar uma pista sobre a palavra"
-                >
-                  <HelpCircle className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Pista</span>
-                </button>
-
-                {isDrawer && roomState.settings.allowEarlyFinish && (
-                  <button
-                    type="button"
-                    onClick={() => sendWs('round:finish')}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border-2 border-emerald-300 text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    Concluir Desenho
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {round.revealedHints.some((h) => h.type === 'contextual') && (
-              <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-amber-950 bg-amber-100 border-2 border-amber-300 rounded-xl px-3 py-1.5">
-                <Lightbulb className="w-4 h-4 text-amber-600 shrink-0" />
-                {round.revealedHints
-                  .filter((h) => h.type === 'contextual')
-                  .map((h: RevealedHint, idx: number) => (
-                    <React.Fragment key={h.index}>
-                      {idx > 0 && <span aria-hidden="true">·</span>}
-                      <span>{h.text}</span>
-                    </React.Fragment>
-                  ))}
-              </div>
-            )}
-          </div>
-
           {/* Mobile Quick Switcher */}
           <div className="flex lg:hidden items-center gap-2">
             <button
@@ -1654,101 +1461,27 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               onClick={() =>
                 setMobilePanel((p) => (p === 'players' ? 'none' : 'players'))
               }
-              className="flex-1 py-2.5 px-3 rounded-xl bg-white border-2 border-indigo-200 text-xs font-extrabold text-indigo-950 flex items-center justify-center gap-1.5 shadow-sm"
+              className="flex-1 py-2 px-3 rounded-xl bg-white border-2 border-indigo-200 text-xs font-extrabold text-indigo-950 flex items-center justify-center gap-1.5"
             >
               <Users className="w-4 h-4 text-indigo-600" />
-              <span>Ranking ({roomState.players.length})</span>
+              <span>Jogadores ({roomState.players.length})</span>
             </button>
             <button
               type="button"
               onClick={() => setMobilePanel((p) => (p === 'feed' ? 'none' : 'feed'))}
-              className="flex-1 py-2.5 px-3 rounded-xl bg-white border-2 border-indigo-200 text-xs font-extrabold text-indigo-950 flex items-center justify-center gap-1.5 shadow-sm"
+              className="flex-1 py-2 px-3 rounded-xl bg-white border-2 border-indigo-200 text-xs font-extrabold text-indigo-950 flex items-center justify-center gap-1.5"
             >
               <MessageSquare className="w-4 h-4 text-indigo-600" />
-              <span>Chat &amp; Mural ({roomState.feed.length})</span>
+              <span>Chat ({roomState.feed.length})</span>
             </button>
           </div>
 
-          {/* 3-COLUMN GARTIC-INSPIRED PARTY ARENA:
-              Left (3 cols): Live Players Ranking
-              Center (6 cols): Drawing Easel + Guess Input
-              Right (3 cols): Live Mural & Chat */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
-            {/* LEFT COLUMN: Players Ranking & Status */}
-            <div
-              className={`${
-                mobilePanel === 'players' ? 'flex' : 'hidden lg:flex'
-              } lg:col-span-3 game-panel rounded-3xl p-3.5 flex-col gap-2.5`}
-            >
-              <div className="flex items-center justify-between border-b-2 border-indigo-100 pb-2">
-                <div className="flex items-center gap-1.5">
-                  <Trophy className="w-4 h-4 text-amber-500" />
-                  <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide">
-                    Jogadores ({roomState.players.length})
-                  </span>
-                </div>
-                <span className="text-[11px] font-bold text-indigo-600">
-                  {roomState.settings.scoringMode === 'competitive'
-                    ? 'Ranking'
-                    : 'Casual'}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-2 max-h-[420px] overflow-y-auto pr-1">
-                {[...roomState.players]
-                  .sort((a, b) => b.score - a.score)
-                  .map((p, idx) => {
-                    const isCurrentDrawer = p.id === round.drawerPlayerId;
-                    return (
-                      <div
-                        key={p.id}
-                        className={`flex items-center justify-between gap-2 p-2 rounded-2xl border-2 transition-all ${
-                          p.hasGuessedThisRound
-                            ? 'bg-emerald-50 border-emerald-400 shadow-2xs'
-                            : isCurrentDrawer
-                            ? 'bg-amber-50 border-amber-400 shadow-2xs'
-                            : 'bg-indigo-50/60 border-indigo-100'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-mono text-xs font-extrabold text-indigo-400 w-4 text-center tabular-nums shrink-0">
-                            {idx + 1}º
-                          </span>
-                          <AvatarSvg avatarId={p.avatarId} size={38} />
-                          <div className="min-w-0">
-                            <div className="text-xs font-extrabold text-indigo-950 truncate">
-                              {p.nickname} {p.id === playerId && '(Você)'}
-                            </div>
-                            <div className="text-[11px] font-bold flex items-center gap-1">
-                              {isCurrentDrawer ? (
-                                <span className="text-amber-700 font-extrabold">
-                                  ✏️ Desenhando
-                                </span>
-                              ) : p.hasGuessedThisRound ? (
-                                <span className="text-emerald-700 font-extrabold flex items-center gap-0.5">
-                                  <Check className="w-3 h-3 stroke-[3]" />
-                                  Acertou ({p.guessOrder}º)
-                                </span>
-                              ) : (
-                                <span className="text-indigo-600/80">💭 Adivinhando</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {roomState.settings.scoringMode === 'competitive' && (
-                          <div className="font-mono text-xs font-extrabold text-indigo-950 tabular-nums shrink-0">
-                            {p.score} <span className="text-[10px] text-indigo-500">pts</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-
-            {/* CENTER COLUMN: Drawing Easel + Direct Guess Box */}
-            <div className="lg:col-span-6 flex flex-col gap-2.5">
+          {/* 2-COLUMN CLEAN ARENA:
+              Left/Center (8 cols): Large Drawing Board + Guess Input
+              Right (4 cols): Compact Players Ranking + Chat Feed */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            {/* MAIN EXPANDED DRAWING BOARD (8 COLS) */}
+            <div className="lg:col-span-8 flex flex-col gap-2.5">
               <DrawingCanvas
                 ref={canvasHandleRef}
                 initialStrokes={roomState.strokes}
@@ -1762,14 +1495,14 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                 compactMode={isSplitScreenChild}
               />
 
-              {/* Prominent Guess Input Box right under the canvas for Guessers */}
+              {/* Direct Guess Input Box right under the canvas for Guessers */}
               {!isDrawer && (
-                <div className="game-panel rounded-2xl p-3 flex flex-col gap-2">
+                <div className="game-panel rounded-2xl p-2.5 flex flex-col gap-1.5">
                   {me?.hasGuessedThisRound ? (
-                    <div className="flex items-center justify-between gap-2 bg-emerald-100 border-2 border-emerald-400 text-emerald-950 px-4 py-2.5 rounded-xl text-sm font-extrabold">
+                    <div className="flex items-center justify-between gap-2 bg-emerald-100 border-2 border-emerald-400 text-emerald-950 px-4 py-2 rounded-xl text-sm font-extrabold">
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                        <span>Mandou bem! Você acertou a palavra desta rodada!</span>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Você acertou a palavra!</span>
                       </div>
                       {roomState.settings.scoringMode === 'competitive' && (
                         <span className="font-mono text-xs font-extrabold text-emerald-800 tabular-nums">
@@ -1785,103 +1518,149 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                         onChange={(e) => setGuessText(e.target.value)}
                         disabled={roomState.status !== 'DRAWING'}
                         maxLength={80}
-                        placeholder={`O que é esse desenho? (${round.wordLetterCount} letras)...`}
+                        placeholder={`Digite seu palpite (${round.wordLetterCount} letras)...`}
                         aria-label="Digite seu palpite"
-                        className="flex-1 bg-indigo-50/90 border-3 border-indigo-200 focus:border-amber-500 rounded-xl px-4 py-2.5 text-sm font-extrabold text-indigo-950 placeholder:text-indigo-400 focus:outline-none min-h-[44px]"
+                        className="flex-1 bg-indigo-50/90 border-2 border-indigo-200 focus:border-amber-500 rounded-xl px-4 py-2.5 text-sm font-extrabold text-indigo-950 placeholder:text-indigo-400 focus:outline-none"
                       />
                       <button
                         type="submit"
                         disabled={roomState.status !== 'DRAWING' || !guessText.trim()}
-                        className="game-btn-amber px-5 py-2.5 rounded-xl disabled:opacity-40 disabled:pointer-events-none font-extrabold text-sm flex items-center gap-1.5 whitespace-nowrap shrink-0 min-h-[44px] cursor-pointer"
+                        className="game-btn-amber px-5 py-2.5 rounded-xl disabled:opacity-40 disabled:pointer-events-none font-extrabold text-sm flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         <Send className="w-4 h-4" />
-                        <span>Chutar!</span>
+                        <span>Chutar</span>
                       </button>
                     </form>
                   )}
 
                   {privateGuessFeedback && !me?.hasGuessedThisRound && (
-                    <div
-                      role="status"
-                      className="text-xs text-rose-700 font-extrabold flex items-center justify-between px-1"
-                    >
-                      <span>{privateGuessFeedback.text}</span>
+                    <div role="status" className="text-xs text-rose-700 font-extrabold px-1">
+                      {privateGuessFeedback.text}
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            {/* RIGHT COLUMN: Live Mural & Chat Bubbles */}
-            <div
-              className={`${
-                mobilePanel === 'feed' ? 'flex' : 'hidden lg:flex'
-              } lg:col-span-3 game-panel rounded-3xl p-3.5 flex-col gap-2.5`}
-            >
-              <div className="flex items-center justify-between border-b-2 border-indigo-100 pb-2">
-                <div className="flex items-center gap-1.5">
-                  <MessageSquare className="w-4 h-4 text-indigo-600" />
+            {/* RIGHT SIDEBAR (4 COLS): Compact Players Ranking + Chat */}
+            <div className="lg:col-span-4 flex flex-col gap-3">
+              {/* Compact Players List */}
+              <div
+                className={`${
+                  mobilePanel === 'players' ? 'flex' : 'hidden lg:flex'
+                } game-panel rounded-3xl p-3.5 flex-col gap-2`}
+              >
+                <div className="flex items-center justify-between pb-1.5 border-b border-indigo-100">
                   <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide">
-                    Mural &amp; Chat
+                    Jogadores ({roomState.players.length})
                   </span>
                 </div>
-                <span className="text-[11px] font-bold text-emerald-600">
-                  Ao vivo
-                </span>
+
+                <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
+                  {[...roomState.players]
+                    .sort((a, b) => b.score - a.score)
+                    .map((p, idx) => {
+                      const isCurrentDrawer = p.id === round.drawerPlayerId;
+                      return (
+                        <div
+                          key={p.id}
+                          className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl border ${
+                            p.hasGuessedThisRound
+                              ? 'bg-emerald-50 border-emerald-300'
+                              : isCurrentDrawer
+                              ? 'bg-amber-50 border-amber-300'
+                              : 'bg-indigo-50/50 border-indigo-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono text-xs font-extrabold text-indigo-400 w-4 text-center tabular-nums shrink-0">
+                              {idx + 1}º
+                            </span>
+                            <AvatarSvg avatarId={p.avatarId} size={32} />
+                            <div className="min-w-0">
+                              <div className="text-xs font-extrabold text-indigo-950 truncate">
+                                {p.nickname}
+                              </div>
+                              <div className="text-[10px] font-bold text-indigo-600/80">
+                                {isCurrentDrawer
+                                  ? '✏️ Desenhando'
+                                  : p.hasGuessedThisRound
+                                  ? `✅ Acertou (${p.guessOrder}º)`
+                                  : 'Adivinhando'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {roomState.settings.scoringMode === 'competitive' && (
+                            <div className="font-mono text-xs font-extrabold text-indigo-950 tabular-nums shrink-0">
+                              {p.score} pts
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
 
+              {/* Clean Live Feed & Chat */}
               <div
-                className="flex flex-col gap-2 max-h-[360px] min-h-[240px] overflow-y-auto pr-1 text-xs"
-                aria-live="polite"
+                className={`${
+                  mobilePanel === 'feed' ? 'flex' : 'hidden lg:flex'
+                } game-panel rounded-3xl p-3.5 flex-col gap-2`}
               >
-                {roomState.feed.slice(-18).map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`p-2.5 rounded-2xl border-2 font-medium leading-snug ${
-                      msg.type === 'correct_guess'
-                        ? 'bg-emerald-100 border-emerald-400 text-emerald-950 font-extrabold'
-                        : msg.type === 'hint'
-                        ? 'bg-amber-100 border-amber-300 text-amber-950 font-bold'
-                        : msg.type === 'chat'
-                        ? 'bg-indigo-50 border-indigo-100 text-indigo-950'
-                        : 'bg-slate-50 border-slate-200 text-indigo-800/80'
-                    }`}
-                  >
-                    {msg.type === 'chat' && msg.playerNickname ? (
-                      <>
-                        <strong className="font-extrabold text-indigo-700">
-                          {msg.playerNickname}:{' '}
-                        </strong>
-                        <span>{msg.text}</span>
-                      </>
-                    ) : (
-                      <span>{msg.text}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {roomState.settings.chatEnabled && (
-                <form
-                  onSubmit={handleSubmitChat}
-                  className="flex items-center gap-1.5 pt-2 border-t-2 border-indigo-100"
+                <div
+                  className="flex flex-col gap-1.5 max-h-[260px] min-h-[180px] overflow-y-auto pr-1 text-xs"
+                  aria-live="polite"
                 >
-                  <input
-                    type="text"
-                    value={chatText}
-                    onChange={(e) => setChatText(e.target.value)}
-                    placeholder="Mandar mensagem no chat..."
-                    maxLength={100}
-                    className="flex-1 bg-indigo-50/90 border-2 border-indigo-200 rounded-xl px-3 py-2 text-xs font-bold text-indigo-950 placeholder:text-indigo-400 focus:outline-none focus:border-indigo-500"
-                  />
-                  <button
-                    type="submit"
-                    className="game-btn-violet px-3.5 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap cursor-pointer"
+                  {roomState.feed.slice(-16).map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`px-3 py-2 rounded-xl border font-medium leading-snug ${
+                        msg.type === 'correct_guess'
+                          ? 'bg-emerald-100 border-emerald-300 text-emerald-950 font-extrabold'
+                          : msg.type === 'hint'
+                          ? 'bg-amber-100 border-amber-300 text-amber-950 font-bold'
+                          : msg.type === 'chat'
+                          ? 'bg-indigo-50 border-indigo-100 text-indigo-950'
+                          : 'bg-slate-50 border-slate-200 text-indigo-800/80'
+                      }`}
+                    >
+                      {msg.type === 'chat' && msg.playerNickname ? (
+                        <>
+                          <strong className="font-extrabold text-indigo-700">
+                            {msg.playerNickname}:{' '}
+                          </strong>
+                          <span>{msg.text}</span>
+                        </>
+                      ) : (
+                        <span>{msg.text}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {roomState.settings.chatEnabled && (
+                  <form
+                    onSubmit={handleSubmitChat}
+                    className="flex items-center gap-1.5 pt-1.5 border-t border-indigo-100"
                   >
-                    Enviar
-                  </button>
-                </form>
-              )}
+                    <input
+                      type="text"
+                      value={chatText}
+                      onChange={(e) => setChatText(e.target.value)}
+                      placeholder="Conversar no chat..."
+                      maxLength={100}
+                      className="flex-1 bg-indigo-50/90 border border-indigo-200 rounded-xl px-3 py-2 text-xs font-bold text-indigo-950 placeholder:text-indigo-400 focus:outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      type="submit"
+                      className="game-btn-violet px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap cursor-pointer"
+                    >
+                      Enviar
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
           </div>
         </div>
