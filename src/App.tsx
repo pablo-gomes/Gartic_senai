@@ -65,7 +65,7 @@ export default function App() {
             <Palette className="w-5 h-5 stroke-[2.5]" />
           </span>
           <span>
-            Traço <span className="text-amber-300">&amp;</span> Tema
+            SENAI <span className="text-amber-300">Phone</span>
           </span>
         </a>
 
@@ -198,7 +198,7 @@ export default function App() {
           <div className="game-panel rounded-3xl max-w-2xl w-full p-6 sm:p-7 flex flex-col gap-5">
             <div className="flex items-center justify-between border-b-2 border-indigo-100 pb-3">
               <h2 id="rules-title" className="text-xl font-extrabold text-indigo-950 font-display">
-                Como Jogar — Traço &amp; Tema
+                Como Jogar — SENAI Phone
               </h2>
               <button
                 type="button"
@@ -228,7 +228,7 @@ export default function App() {
               <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 flex flex-col gap-1.5">
                 <h3 className="font-extrabold text-indigo-950 font-display">03. Dicas de Letras</h3>
                 <p className="text-xs text-indigo-900/80 leading-relaxed">
-                  Veja a quantidade exata de letras no topo e clique nos quadradinhos ou no botão de dica para revelar letras e ajudar a sala!
+                  Apenas quem está desenhando pode clicar nas letras ou no botão <strong>Revelar Letra</strong> para dar dicas, enquanto os adivinhadores observam as letras reveladas!
                 </p>
               </div>
 

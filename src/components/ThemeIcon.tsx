@@ -13,6 +13,21 @@ import {
   FlaskConical,
   Shuffle,
   Sparkles,
+  Cpu,
+  Wrench,
+  Film,
+  Music,
+  HeartPulse,
+  Shirt,
+  GraduationCap,
+  Home,
+  Rocket,
+  Sun,
+  PartyPopper,
+  Anchor,
+  Bug,
+  HardHat,
+  Crown,
 } from 'lucide-react';
 
 interface ThemeIconProps {
@@ -44,6 +59,36 @@ export const ThemeIcon: React.FC<ThemeIconProps> = ({ iconName, className = 'w-6
       return <MapPin className={className} />;
     case 'FlaskConical':
       return <FlaskConical className={className} />;
+    case 'Cpu':
+      return <Cpu className={className} />;
+    case 'Wrench':
+      return <Wrench className={className} />;
+    case 'Film':
+      return <Film className={className} />;
+    case 'Music':
+      return <Music className={className} />;
+    case 'HeartPulse':
+      return <HeartPulse className={className} />;
+    case 'Shirt':
+      return <Shirt className={className} />;
+    case 'GraduationCap':
+      return <GraduationCap className={className} />;
+    case 'Home':
+      return <Home className={className} />;
+    case 'Rocket':
+      return <Rocket className={className} />;
+    case 'Sun':
+      return <Sun className={className} />;
+    case 'PartyPopper':
+      return <PartyPopper className={className} />;
+    case 'Anchor':
+      return <Anchor className={className} />;
+    case 'Bug':
+      return <Bug className={className} />;
+    case 'HardHat':
+      return <HardHat className={className} />;
+    case 'Crown':
+      return <Crown className={className} />;
     case 'Shuffle':
       return <Shuffle className={className} />;
     default:

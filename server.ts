@@ -543,7 +543,7 @@ function startRoundSetup(room: InternalRoom) {
   room.redoStack = [];
 
   const specificThemes = THEMES_CATALOG.filter((t) => t.id !== 'misturado' && t.enabled);
-  const shuffled = [...specificThemes].sort(() => Math.random() - 0.5).slice(0, 5);
+  const shuffled = [...specificThemes].sort(() => Math.random() - 0.5).slice(0, 11);
   const misturado = THEMES_CATALOG.find((t) => t.id === 'misturado');
   const themeOptions = misturado ? [...shuffled, misturado] : shuffled;
 
@@ -1704,10 +1704,17 @@ async function startServer() {
         return;
       }
 
-      // 10. REQUEST HINT (UNLIMITED LETTER REVEALS OR CONTEXTUAL HINTS)
+      // 10. REQUEST HINT (ONLY THE CURRENT DRAWER CAN REVEAL LETTERS OR HINTS)
       if (event === 'hint:request') {
-        if (room.status !== 'DRAWING' || !room.currentRound || !room. currentRound.secretWord) return;
+        if (room.status !== 'DRAWING' || !room.currentRound || !room.currentRound.secretWord) return;
         const round = room.currentRound;
+        if (player.id !== round.drawerPlayerId) {
+          sendError(
+            'Apenas quem está desenhando pode revelar letras para os outros jogadores.',
+            'FORBIDDEN_NOT_DRAWER'
+          );
+          return;
+        }
         const word = round.secretWord;
         if (!word) return;
         const mode = payload.mode === 'context' ? 'context' : 'letter';
@@ -2145,7 +2152,7 @@ async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
   httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(
-      `Traço & Tema server listening on http://0.0.0.0:${PORT} (mode=${
+      `SENAI Phone server listening on http://0.0.0.0:${PORT} (mode=${
         isProd ? 'production' : 'development'
       }, bootId=${SERVER_BOOT_ID})`
     );

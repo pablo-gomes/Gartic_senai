@@ -585,7 +585,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
     if (!roomState) return;
     const sorted = [...roomState.players].sort((a, b) => b.score - a.score);
     const lines = [
-      `Resumo da Partida — Traço & Tema (${roomState.settings.roomName})`,
+      `Resumo da Partida — SENAI Phone (${roomState.settings.roomName})`,
       ...sorted.map(
         (p, idx) =>
           `${idx + 1}º ${p.nickname}: ${p.score} pts · ${p.totalCorrectGuesses} acertos · ${p.timesDrawn} desenhos`
@@ -882,16 +882,78 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
           </div>
         </div>
 
-        {/* Center: Word / Interactive Letter Slots + Hint Action (During Drawing) */}
+        {/* Center: Word / Letter Slots (Drawer reveals letters; Guessers only observe) */}
         {round && (roomState.status === 'DRAWING' || roomState.status === 'PAUSED') && (
           <div className="flex flex-wrap items-center justify-center gap-2">
             {isDrawer ? (
-              <div className="flex items-center gap-2 bg-amber-300 border-2 border-amber-500 px-3.5 py-1 rounded-xl">
-                <Eye className="w-4 h-4 text-indigo-950 shrink-0" />
-                <span className="text-sm font-extrabold text-indigo-950 tracking-wide font-display uppercase">
-                  {privateWord?.word ?? '...'}
-                </span>
-              </div>
+              <>
+                <div
+                  className="flex flex-wrap items-center gap-1"
+                  aria-label="Sua palavra secreta (clique em uma letra para revelá-la aos jogadores)"
+                >
+                  {Array.from(privateWord?.word ?? '').map((ch, idx) => {
+                    if (ch === ' ') {
+                      return <span key={idx} className="w-2.5 h-7 inline-block" />;
+                    }
+                    if (ch === '-') {
+                      return (
+                        <span
+                          key={idx}
+                          className="w-3 h-7 flex items-center justify-center font-mono font-extrabold text-indigo-400"
+                        >
+                          -
+                        </span>
+                      );
+                    }
+                    const isRevealedToRoom =
+                      round.wordMask && round.wordMask[idx] && round.wordMask[idx] !== '_';
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        disabled={Boolean(isRevealedToRoom) || roomState.status !== 'DRAWING'}
+                        onClick={() => handleRevealLetterHint(idx)}
+                        title={
+                          isRevealedToRoom
+                            ? `Letra "${ch.toUpperCase()}" já visível para a sala`
+                            : `Clique para revelar a letra "${ch.toUpperCase()}" para a sala`
+                        }
+                        className={`w-7 h-8 rounded-lg font-mono text-sm font-extrabold flex items-center justify-center border-2 transition-all ${
+                          isRevealedToRoom
+                            ? 'bg-amber-300 border-amber-500 text-indigo-950 shadow-2xs'
+                            : 'bg-indigo-50 border-indigo-300 hover:bg-amber-200 hover:border-amber-500 text-indigo-950 cursor-pointer'
+                        }`}
+                      >
+                        {ch.toUpperCase()}
+                      </button>
+                    );
+                  })}
+                  <span className="ml-1 text-xs font-mono font-extrabold text-indigo-600">
+                    ({round.wordLetterCount})
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleRevealLetterHint()}
+                  disabled={roomState.status !== 'DRAWING' || round.unrevealedLettersCount === 0}
+                  className="game-btn-amber flex items-center gap-1 px-2.5 py-1 rounded-xl disabled:opacity-40 font-extrabold text-xs cursor-pointer"
+                  title="Revelar uma letra para os jogadores"
+                >
+                  <Lightbulb className="w-3.5 h-3.5" />
+                  <span>Revelar Letra</span>
+                </button>
+
+                {roomState.settings.allowEarlyFinish && (
+                  <button
+                    type="button"
+                    onClick={() => sendWs('round:finish')}
+                    className="px-2.5 py-1 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 text-xs font-extrabold cursor-pointer"
+                  >
+                    Concluir
+                  </button>
+                )}
+              </>
             ) : (
               round.wordMask &&
               round.wordMask.length > 0 && (
@@ -915,52 +977,28 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
                     }
                     const isRevealed = ch !== '_';
                     return (
-                      <button
+                      <span
                         key={idx}
-                        type="button"
-                        disabled={isRevealed || roomState.status !== 'DRAWING'}
-                        onClick={() => handleRevealLetterHint(idx)}
                         title={
                           isRevealed
-                            ? `Letra ${idx + 1}: ${ch}`
-                            : `Clique para revelar a ${idx + 1}ª letra`
+                            ? `Letra revelada pelo desenhista: ${ch}`
+                            : 'Letra oculta (apenas o desenhista pode revelar)'
                         }
-                        className={`w-7 h-8 rounded-lg font-mono text-sm font-extrabold flex items-center justify-center border-2 transition-all ${
+                        className={`w-7 h-8 rounded-lg font-mono text-sm font-extrabold flex items-center justify-center border-2 select-none ${
                           isRevealed
                             ? 'bg-amber-300 border-amber-500 text-indigo-950'
-                            : 'bg-indigo-50 border-indigo-200 hover:border-amber-400 text-indigo-400 hover:text-indigo-950 cursor-pointer'
+                            : 'bg-indigo-50 border-indigo-200 text-indigo-400'
                         }`}
                       >
                         {isRevealed ? ch : '_'}
-                      </button>
+                      </span>
                     );
                   })}
                   <span className="ml-1 text-xs font-mono font-extrabold text-indigo-600">
-                    ({round.wordLetterCount})
+                    ({round.wordLetterCount} letras)
                   </span>
                 </div>
               )
-            )}
-
-            <button
-              type="button"
-              onClick={() => handleRevealLetterHint()}
-              disabled={roomState.status !== 'DRAWING' || round.unrevealedLettersCount === 0}
-              className="game-btn-amber flex items-center gap-1 px-2.5 py-1 rounded-xl disabled:opacity-40 font-extrabold text-xs cursor-pointer"
-              title="Revelar uma letra da palavra"
-            >
-              <Lightbulb className="w-3.5 h-3.5" />
-              <span>Dica</span>
-            </button>
-
-            {isDrawer && roomState.settings.allowEarlyFinish && (
-              <button
-                type="button"
-                onClick={() => sendWs('round:finish')}
-                className="px-2.5 py-1 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 text-xs font-extrabold cursor-pointer"
-              >
-                Concluir
-              </button>
             )}
           </div>
         )}
