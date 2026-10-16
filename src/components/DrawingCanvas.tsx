@@ -62,8 +62,8 @@ interface DrawingCanvasProps {
 
 const LOGICAL_WIDTH = 960;
 const LOGICAL_HEIGHT = 560;
-const DEFAULT_BATCH_INTERVAL_MS = 40; // 25 updates per second smooth real-time streaming
-const MAX_POINTS_PER_BATCH = 64; // Compact batch limit
+const DEFAULT_BATCH_INTERVAL_MS = 45; // ~22 updates/sec: optimal balance for 35 concurrent connections on free tier
+const MAX_POINTS_PER_BATCH = 48; // Compact batch limit to prevent frame packet bloat
 
 const SHAPE_OPTIONS: Array<{ id: ShapeType; label: string; icon: React.ReactNode }> = [
   { id: 'rect', label: 'Retângulo', icon: <Square className="w-3.5 h-3.5" /> },
@@ -967,7 +967,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>
       const last = activePointsRef.current[activePointsRef.current.length - 1];
       if (last) {
         const dist = Math.hypot(pt.x - last.x, pt.y - last.y);
-        if (dist < 0.0025) return;
+        if (dist < 0.0028) return; // Smart decimation: prevents sub-pixel packet flood
       }
 
       activePointsRef.current.push(pt);

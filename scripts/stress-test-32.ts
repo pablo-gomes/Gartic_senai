@@ -150,7 +150,7 @@ async function measurePingLatency(client: SimClient): Promise<number> {
 
 async function runStressSuite() {
   console.log('================================================================');
-  console.log(' INICIANDO BATERIA DE TESTES AUTOMATIZADOS (32 JOGADORES)');
+  console.log(' INICIANDO BATERIA DE TESTES AUTOMATIZADOS (35 JOGADORES)');
   console.log('================================================================');
 
   const startTime = performance.now();
@@ -158,11 +158,11 @@ async function runStressSuite() {
   console.log(`[Métrica Inicial] RAM RSS: ${initialHealth.rssMb} MB | Heap: ${initialHealth.heapUsedMb} MB | Salas: ${initialHealth.rooms}`);
 
   // --------------------------------------------------------------------------
-  // TESTE A: SALA CHEIA (32 CONEXÕES SIMULTÂNEAS) + ISOLAMENTO ENTRE SALAS
+  // TESTE A: SALA CHEIA (35 CONEXÕES SIMULTÂNEAS) + ISOLAMENTO ENTRE SALAS
   // --------------------------------------------------------------------------
-  console.log('\n--- [Teste A] Conectando 32 jogadores na Sala A + 2 jogadores na Sala B (Isolamento) ---');
+  console.log('\n--- [Teste A] Conectando 35 jogadores na Sala A + 2 jogadores na Sala B (Isolamento) ---');
   const clientsA: SimClient[] = [];
-  for (let i = 1; i <= 32; i++) {
+  for (let i = 1; i <= 35; i++) {
     const c = await createSimClient(i, 'salaA');
     clientsA.push(c);
   }
@@ -173,8 +173,8 @@ async function runStressSuite() {
     nickname: hostA.nickname,
     avatarId: 0,
     settings: {
-      roomName: 'Arena Oficial 32P',
-      maxPlayers: 32,
+      roomName: 'Arena Oficial 35P',
+      maxPlayers: 35,
       roundDuration: 60,
       roundsPerPlayer: 1,
       themeMode: 'random',
@@ -202,21 +202,21 @@ async function runStressSuite() {
   await sleep(400);
 
   const joinedCountA = clientsA.filter((c) => c.joinedCode === roomCodeA).length;
-  console.log(`[Teste A] Jogadores conectados na Sala A (${roomCodeA}): ${joinedCountA}/32`);
+  console.log(`[Teste A] Jogadores conectados na Sala A (${roomCodeA}): ${joinedCountA}/35`);
 
-  // Test 33rd player rejection (Room Full limit)
-  const extra33 = await createSimClient(33, 'extra');
-  sendEvent(extra33, 'room:join', {
+  // Test 36th player rejection (Room Full limit at 35)
+  const extra36 = await createSimClient(36, 'extra');
+  sendEvent(extra36, 'room:join', {
     joinCode: roomCodeA,
-    playerId: extra33.id,
-    nickname: 'Intruso_33',
+    playerId: extra36.id,
+    nickname: 'Intruso_36',
     avatarId: 2,
   });
   await sleep(150);
-  const rejected33 = extra33.lastError === 'ROOM_FULL' && extra33.joinedCode === null;
-  console.log(`[Teste A] Bloqueio do 33º jogador acima do limite: ${rejected33 ? 'PASSOU (ROOM_FULL)' : 'FALHOU'}`);
-  extra33.intentionalDisconnect = true;
-  extra33.ws.close();
+  const rejected36 = extra36.lastError === 'ROOM_FULL' && extra36.joinedCode === null;
+  console.log(`[Teste A] Bloqueio do 36º jogador acima do limite: ${rejected36 ? 'PASSOU (ROOM_FULL)' : 'FALHOU'}`);
+  extra36.intentionalDisconnect = true;
+  extra36.ws.close();
 
   // Create Room B to verify strict room isolation
   const clientB1 = await createSimClient(1, 'salaB');
@@ -471,10 +471,10 @@ async function runStressSuite() {
   const elapsedSec = (performance.now() - startTime) / 1000;
 
   console.log('\n================================================================');
-  console.log(' RELATÓRIO DE MÉTRICAS REAIS (32 JOGADORES SIMULTÂNEOS)');
+  console.log(' RELATÓRIO DE MÉTRICAS REAIS (35 JOGADORES SIMULTÂNEOS)');
   console.log('================================================================');
   console.log(`Duração total da bateria:        ${elapsedSec.toFixed(2)} s`);
-  console.log(`Jogadores simultâneos Sala A:    ${joinedCountA}/32`);
+  console.log(`Jogadores simultâneos Sala A:    ${joinedCountA}/35`);
   console.log(`Desconexões inesperadas:         ${totalUnexpectedDisconnects}`);
   console.log(`Mensagens totais enviadas:       ${totalMessagesSent} (${(totalMessagesSent / elapsedSec).toFixed(1)} msg/s)`);
   console.log(`Mensagens totais recebidas:      ${totalMessagesReceived} (${(totalMessagesReceived / elapsedSec).toFixed(1)} msg/s)`);
@@ -483,7 +483,7 @@ async function runStressSuite() {
   console.log(`Latência WebSocket Média (RTT):  ${avgLatency.toFixed(2)} ms`);
   console.log(`Latência WebSocket P95 (RTT):    ${p95Latency.toFixed(2)} ms`);
   console.log(`Memória RAM Inicial (RSS/Heap):  ${initialHealth.rssMb} MB / ${initialHealth.heapUsedMb} MB`);
-  console.log(`Memória RAM Pico 32P (RSS/Heap): ${peakHealth.rssMb} MB / ${peakHealth.heapUsedMb} MB`);
+  console.log(`Memória RAM Pico 35P (RSS/Heap): ${peakHealth.rssMb} MB / ${peakHealth.heapUsedMb} MB`);
   console.log(`Memória Pós-Limpeza (RSS/Heap):  ${afterCleanupHealth.rssMb} MB / ${afterCleanupHealth.heapUsedMb} MB | Salas ativas: ${afterCleanupHealth.rooms}`);
   console.log('================================================================');
 }

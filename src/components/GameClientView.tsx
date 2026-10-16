@@ -131,6 +131,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
   currentDrawerIdRef.current = roomState?.currentRound?.drawerPlayerId ?? null;
   const localDrawingRevisionRef = useRef<number>(0);
   const lastSyncRequestAtRef = useRef<number>(0);
+  const lastBatchReceivedAtRef = useRef<number>(0);
   const pendingWsQueueRef = useRef<string[]>([]);
 
   const sendWs = useCallback((event: string, payload: Record<string, unknown> = {}) => {
@@ -351,7 +352,7 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               setRemainingSeconds(payload.remainingSeconds);
             }
 
-            // Real-time 1-second self-healing verification for all 35 players
+            // Anti-freeze self-healing verification for up to 35 players
             if (
               typeof payload?.drawingRevision === 'number' &&
               typeof payload?.strokesCount === 'number' &&
@@ -362,23 +363,26 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
               const localCount = canvasHandleRef.current.getStrokesCount();
 
               if (!isCurrentDrawer) {
-                // Spectator: if revision or stroke count drifted, request instant delta snapshot
-                if (
-                  (payload.drawingRevision !== localDrawingRevisionRef.current ||
-                    payload.strokesCount !== localCount) &&
-                  now - lastSyncRequestAtRef.current > 900
+                // If drawer cleared the canvas on the server, clear locally immediately
+                if (payload.strokesCount === 0 && localCount > 0) {
+                  canvasHandleRef.current.clearCanvas();
+                } else if (
+                  payload.strokesCount > localCount &&
+                  now - lastBatchReceivedAtRef.current > 2500 &&
+                  now - lastSyncRequestAtRef.current > 4500
                 ) {
+                  // Only sync when drawing is quiet (no batches in 2.5s) and spectator is missing strokes
                   lastSyncRequestAtRef.current = now;
                   if (socket.readyState === WebSocket.OPEN) {
                     socket.send(JSON.stringify({ event: 'drawing:sync_request', payload: {} }));
                   }
                 }
               } else {
-                // Drawer: if drawer has strokes that the server missed during a micro-blip and is not mid-stroke, push full snapshot
+                // Drawer: if drawer has completed strokes that the server missed during a micro-blip and is not mid-stroke, push full snapshot
                 if (
                   localCount > payload.strokesCount &&
                   !canvasHandleRef.current.isActivelyDrawing() &&
-                  now - lastSyncRequestAtRef.current > 1200
+                  now - lastSyncRequestAtRef.current > 2000
                 ) {
                   lastSyncRequestAtRef.current = now;
                   if (socket.readyState === WebSocket.OPEN) {
@@ -394,22 +398,15 @@ export const GameClientView: React.FC<GameClientViewProps> = ({
             }
           } else if (event === 'drawing:batch' || event === 'drawing:stroke') {
             // Forward directly to Canvas 2D imperative handle — ZERO React re-renders!
+            lastBatchReceivedAtRef.current = Date.now();
             const batchPayload = payload as DrawingBatchPayload;
             canvasHandleRef.current?.applyBatch(batchPayload);
 
             if (typeof batchPayload.drawingRevision === 'number') {
-              const expectedRev = localDrawingRevisionRef.current + 1;
-              localDrawingRevisionRef.current = batchPayload.drawingRevision;
-              // If a batch was skipped over the network, trigger an immediate background sync
-              if (
-                batchPayload.drawingRevision > expectedRev &&
-                Date.now() - lastSyncRequestAtRef.current > 900
-              ) {
-                lastSyncRequestAtRef.current = Date.now();
-                if (socket.readyState === WebSocket.OPEN) {
-                  socket.send(JSON.stringify({ event: 'drawing:sync_request', payload: {} }));
-                }
-              }
+              localDrawingRevisionRef.current = Math.max(
+                localDrawingRevisionRef.current,
+                batchPayload.drawingRevision
+              );
             }
           } else if (event === 'drawing:clear') {
             if (typeof payload?.drawingRevision === 'number') {

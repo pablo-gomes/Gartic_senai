@@ -111,6 +111,9 @@ interface InternalRoom {
   redoStack: DrawingStroke[];
   feed: SystemFeedMessage[];
   phaseTimer: NodeJS.Timeout | null;
+  cachedSyncPayload: string | null;
+  cachedSyncRevision: number;
+  lastSyncRequestByPlayer: Map<string, number>;
 }
 
 const rooms = new Map<string, InternalRoom>();
@@ -151,7 +154,7 @@ function generateId(prefix = 'id'): string {
 
 function sanitizeSettings(partial: Partial<RoomSettings>, current?: RoomSettings): RoomSettings {
   const base: RoomSettings = current ?? {
-    roomName: 'Arena 32 Players',
+    roomName: 'Arena SENAI Phone',
     maxPlayers: MAX_PLAYERS_PER_ROOM,
     roundDuration: 60,
     roundsPerPlayer: 1,
@@ -418,12 +421,20 @@ function broadcastEvent(
   excludePlayerId?: string,
   skipIfBackpressured = false
 ) {
-  const serialized = JSON.stringify({ event, payload });
+  const serialized = typeof payload === 'string' ? payload : JSON.stringify({ event, payload });
   for (const player of room.players.values()) {
     if (excludePlayerId && player.id === excludePlayerId) continue;
     const ws = player.ws;
     if (ws && ws.readyState === WebSocket.OPEN) {
-      if (skipIfBackpressured && ws.bufferedAmount > 2 * 1024 * 1024) {
+      // Free-tier backpressure protection: drop streaming delta frame if spectator socket buffer exceeds 32KB
+      if (skipIfBackpressured && ws.bufferedAmount > 32 * 1024) {
+        continue;
+      }
+      // Stalled socket defense: terminate zombie client buffering > 384KB before it exhausts container memory
+      if (ws.bufferedAmount > 384 * 1024) {
+        try {
+          ws.terminate();
+        } catch {}
         continue;
       }
       try {
@@ -454,6 +465,8 @@ function cleanupRoomResources(room: InternalRoom) {
   room.strokes = [];
   room.redoStack = [];
   room.feed = [];
+  room.cachedSyncPayload = null;
+  room.lastSyncRequestByPlayer.clear();
 }
 
 function pickWordForTheme(room: InternalRoom, themeId: string): { word: WordEntry; resolvedTheme: ThemeEntry } {
@@ -1181,6 +1194,9 @@ async function startServer() {
           redoStack: [],
           feed: [],
           phaseTimer: null,
+          cachedSyncPayload: null,
+          cachedSyncRevision: 0,
+          lastSyncRequestByPlayer: new Map(),
         };
 
         const hostPlayer: InternalPlayer = {
@@ -1679,6 +1695,7 @@ async function startServer() {
           }
 
           room.currentRound.drawingRevision += 1;
+          room.cachedSyncPayload = null;
 
           const batchOut = {
             roundId: room.currentRound.id,
@@ -1694,7 +1711,7 @@ async function startServer() {
             drawingRevision: room.currentRound.drawingRevision,
             strokesCount: room.strokes.length,
           };
-          broadcastEvent(room, 'drawing:batch', batchOut, player.id, false);
+          broadcastEvent(room, 'drawing:batch', batchOut, player.id, true);
           return;
         }
 
@@ -1768,6 +1785,7 @@ async function startServer() {
         }
         room.currentRound.totalPointsCount += cleanPoints.length;
         room.currentRound.drawingRevision += 1;
+        room.cachedSyncPayload = null;
 
         const batchPayload = {
           roundId: room.currentRound.id,
@@ -1783,19 +1801,45 @@ async function startServer() {
           strokesCount: room.strokes.length,
         };
 
-        // Single serialization broadcast to all 34 spectators without dropping packets
-        broadcastEvent(room, 'drawing:batch', batchPayload, player.id, false);
+        // Single serialization broadcast to all 34 spectators with backpressure protection
+        broadcastEvent(room, 'drawing:batch', batchPayload, player.id, true);
         return;
       }
 
       // 8B. AUTO-HEALING CANVAS SYNC REQUEST (Spectator missed a packet or tab woke up)
       if (event === 'drawing:sync_request') {
         if (!room.currentRound) return;
-        sendToPlayer(player, 'drawing:state', {
-          roundId: room.currentRound.id,
-          strokes: room.strokes,
-          drawingRevision: room.currentRound.drawingRevision,
+        const now = Date.now();
+        const lastSync = room.lastSyncRequestByPlayer.get(player.id) || 0;
+        if (now - lastSync < 3500) {
+          // Anti-flood throttle: ignore rapid sync requests from the same spectator
+          return;
+        }
+        room.lastSyncRequestByPlayer.set(player.id, now);
+
+        // Serve pre-serialized cached payload if revision unchanged (0ms CPU, zero GC allocs)
+        if (
+          room.cachedSyncPayload &&
+          room.cachedSyncRevision === room.currentRound.drawingRevision
+        ) {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(room.cachedSyncPayload);
+          }
+          return;
+        }
+
+        room.cachedSyncRevision = room.currentRound.drawingRevision;
+        room.cachedSyncPayload = JSON.stringify({
+          event: 'drawing:state',
+          payload: {
+            roundId: room.currentRound.id,
+            strokes: room.strokes,
+            drawingRevision: room.cachedSyncRevision,
+          },
         });
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(room.cachedSyncPayload);
+        }
         return;
       }
 
@@ -1847,6 +1891,7 @@ async function startServer() {
         room.strokes = syncedStrokes;
         room.currentRound.totalPointsCount = totalPts;
         room.currentRound.drawingRevision += 1;
+        room.cachedSyncPayload = null;
         broadcastEvent(
           room,
           'drawing:state',
@@ -1872,6 +1917,7 @@ async function startServer() {
             room.currentRound.totalPointsCount - popped.points.length
           );
           room.currentRound.drawingRevision += 1;
+          room.cachedSyncPayload = null;
           broadcastEvent(room, 'drawing:state', {
             roundId: room.currentRound.id,
             strokes: room.strokes,
@@ -1889,6 +1935,7 @@ async function startServer() {
           room.strokes.push(restored);
           room.currentRound.totalPointsCount += restored.points.length;
           room.currentRound.drawingRevision += 1;
+          room.cachedSyncPayload = null;
           broadcastEvent(room, 'drawing:state', {
             roundId: room.currentRound.id,
             strokes: room.strokes,
@@ -1908,6 +1955,7 @@ async function startServer() {
         room.redoStack = [];
         room.currentRound.totalPointsCount = 0;
         room.currentRound.drawingRevision += 1;
+        room.cachedSyncPayload = null;
         player.lastStrokeSeqMap.clear();
         broadcastEvent(room, 'drawing:clear', {
           roundId: room.currentRound.id,
